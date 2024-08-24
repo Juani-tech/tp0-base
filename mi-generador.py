@@ -49,11 +49,12 @@ if __name__ == "__main__":
             "environment": [f"CLI_ID={i}", "CLI_LOG_LEVEL=DEBUG"],
             "networks": ["testing_net"],
             "depends_on": ["server"],
+            "volumes": ["./client/config.yaml:/config.yaml"],
         }
 
     with open(sys.argv[1], "w") as yaml_file:
         yaml.dump(data, yaml_file, default_flow_style=False)
 
     print(
-        f"YAML file 'output.yaml' generated successfully with {number_of_clients} clients."
+        f"YAML file '{sys.argv[1]}' generated successfully with {number_of_clients} clients."
     )

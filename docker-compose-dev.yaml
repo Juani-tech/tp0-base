@@ -1,30 +1,82 @@
 name: tp0
+networks:
+  testing_net:
+    ipam:
+      config:
+        - subnet: 172.25.125.0/24
+      driver: default
 services:
-  server:
-    container_name: server
-    image: server:latest
-    entrypoint: python3 /main.py
-    environment:
-      - PYTHONUNBUFFERED=1
-      - LOGGING_LEVEL=DEBUG
-    networks:
-      - testing_net
-
   client1:
     container_name: client1
-    image: client:latest
+    depends_on:
+      - server
     entrypoint: /client
     environment:
       - CLI_ID=1
       - CLI_LOG_LEVEL=DEBUG
+    image: client:latest
     networks:
       - testing_net
+    volumes:
+      - ./client/config.yaml:/config.yaml
+  client2:
+    container_name: client2
     depends_on:
       - server
-
-networks:
-  testing_net:
-    ipam:
-      driver: default
-      config:
-        - subnet: 172.25.125.0/24
+    entrypoint: /client
+    environment:
+      - CLI_ID=2
+      - CLI_LOG_LEVEL=DEBUG
+    image: client:latest
+    networks:
+      - testing_net
+    volumes:
+      - ./client/config.yaml:/config.yaml
+  client3:
+    container_name: client3
+    depends_on:
+      - server
+    entrypoint: /client
+    environment:
+      - CLI_ID=3
+      - CLI_LOG_LEVEL=DEBUG
+    image: client:latest
+    networks:
+      - testing_net
+    volumes:
+      - ./client/config.yaml:/config.yaml
+  client4:
+    container_name: client4
+    depends_on:
+      - server
+    entrypoint: /client
+    environment:
+      - CLI_ID=4
+      - CLI_LOG_LEVEL=DEBUG
+    image: client:latest
+    networks:
+      - testing_net
+    volumes:
+      - ./client/config.yaml:/config.yaml
+  client5:
+    container_name: client5
+    depends_on:
+      - server
+    entrypoint: /client
+    environment:
+      - CLI_ID=5
+      - CLI_LOG_LEVEL=DEBUG
+    image: client:latest
+    networks:
+      - testing_net
+    volumes:
+      - ./client/config.yaml:/config.yaml
+  server:
+    container_name: server
+    entrypoint: python3 /main.py
+    environment:
+      - PYTHONUNBUFFERED=1
+      - LOGGING_LEVEL=DEBUG
+    image: server:latest
+    networks:
+      - testing_net
