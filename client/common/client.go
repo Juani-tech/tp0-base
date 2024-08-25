@@ -26,14 +26,30 @@ type ClientConfig struct {
 type Client struct {
 	config ClientConfig
 	conn   net.Conn
+	stop   chan bool
 }
 
 // NewClient Initializes a new client receiving the configuration
 // as a parameter
 func NewClient(config ClientConfig) *Client {
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGTERM)
+	stop := make(chan bool, 1)
+
 	client := &Client{
 		config: config,
+		stop:   stop,
 	}
+
+	// goroutine to handle the signal and trigger shutdown
+	// it has to be goroutine because the channels otherwise would block the program
+	// until SIGTERM is received
+	go func() {
+		sig := <-sigs
+		log.Infof("action: signal_received | result: success | signal: %v | client_id: %v", sig, config.ID)
+		stop <- true
+	}()
+
 	return client
 }
 
@@ -48,6 +64,8 @@ func (c *Client) createClientSocket() error {
 			c.config.ID,
 			err,
 		)
+		// Added this return (needed)
+		return err
 	}
 	c.conn = conn
 	return nil
@@ -55,19 +73,6 @@ func (c *Client) createClientSocket() error {
 
 // StartClientLoop Send messages to the client until some time threshold is met
 func (c *Client) StartClientLoop() {
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGTERM)
-	stop := make(chan bool, 1)
-
-	// goroutine to handle the signal and trigger shutdown
-	// it has to be goroutine because the channels otherwise would block the program
-	// until SIGTERM is received
-	go func() {
-		sig := <-sigs
-		log.Infof("action: signal_received | result: success | signal: %v | client_id: %v", sig, c.config.ID)
-		stop <- true
-	}()
-
 	// There is an autoincremental msgID to identify every message sent
 	// Messages if the message amount threshold has not been surpassed
 
@@ -75,7 +80,7 @@ func (c *Client) StartClientLoop() {
 		// As tour of go says:
 		// The select statement lets a goroutine wait on multiple communication operations.
 		select {
-		case <-stop:
+		case <-c.stop:
 			log.Infof("action: loop_terminated | result: interrupted | client_id: %v", c.config.ID)
 			c.conn.Close()
 			return
@@ -141,12 +146,18 @@ func (c *Client) SendBet(g *Gambler) {
 	// 	- csv information with key=value format, and \n to delimit the message
 	// 	- Example:
 	// NOMBRE=Juan,APELLIDO=Perez,DOCUMENTO=11111111,NACIMIENTO=2020-03-03,NUMERO=1234\n
-	c.createClientSocket()
-
+	err := c.createClientSocket()
+	if err != nil {
+		log.Errorf("action: send_bet | result: fail | client_id: %v | error: %v",
+			c.config.ID,
+			err,
+		)
+		return
+	}
 	message :=
-		fmt.Sprintf("NOMBRE=%s,APELLIDO=%s,DOCUMENTO=%s,NACIMIENTO=%s,NUMERO=%s\n", g.name, g.surname, g.document, g.birthDate, g.gambledNumber)
+		fmt.Sprintf("AGENCIA=%s,NOMBRE=%s,APELLIDO=%s,DOCUMENTO=%s,NACIMIENTO=%s,NUMERO=%s\n", c.config.ID, g.name, g.surname, g.document, g.birthDate, g.gambledNumber)
 
-	err := c.SendAll(message)
+	err = c.SendAll(message)
 
 	if err != nil {
 		log.Errorf("action: send_bet | result: fail | client_id: %v | error: %v",
@@ -155,5 +166,6 @@ func (c *Client) SendBet(g *Gambler) {
 		)
 		return
 	}
+
 	log.Infof("action: apuesta_enviada | result: success | dni: %s | numero: %s", g.document, g.gambledNumber)
 }

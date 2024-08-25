@@ -1,6 +1,8 @@
 package common
 
 import (
+	"os"
+
 	"github.com/spf13/viper"
 )
 
@@ -28,7 +30,8 @@ func NewGamblerFromENV() *Gambler {
 		v.GetString("nombre"),
 		v.GetString("apellido"),
 		v.GetString("documento"),
-		v.GetString("nacimiento"),
+		// v.GetString("nacimiento"),
+		os.Getenv("CLI_NACIMIENTO"),
 		v.GetString("numero"),
 	)
 
@@ -36,7 +39,7 @@ func NewGamblerFromENV() *Gambler {
 		name:          v.GetString("nombre"),
 		surname:       v.GetString("apellido"),
 		document:      v.GetString("documento"),
-		birthDate:     v.GetString("nacimiento"),
+		birthDate:     os.Getenv("CLI_NACIMIENTO"),
 		gambledNumber: v.GetString("numero"),
 	}
 }
