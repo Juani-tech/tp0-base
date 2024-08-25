@@ -76,7 +76,6 @@ class Server:
             logging.info(
                 f"action: receive_message | result: success | ip: {addr[0]} | msg: {msg}"
             )
-            time.sleep(5)
             send_all(client_sock, "{}\n".format(msg).encode("utf-8"))
         except OSError as e:
             logging.error(f"action: receive_message | result: fail | error: {e}")
