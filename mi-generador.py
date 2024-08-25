@@ -47,18 +47,6 @@ if __name__ == "__main__":
             "container_name": client_name,
             "image": "client:latest",
             "entrypoint": "/client",
-            # "environment": [
-            #     f"CLI_ID={i}",
-            #     "CLI_LOG_LEVEL=DEBUG",
-            #     f"NOMBRE={random.choice(names)}",
-            #     f"APELLIDO={random.choice(surnames)}",
-            #     # random.randint(0,28):02d -> adds left zero padding if necessary
-            #     # (up to 2 characters)
-            #     f"NACIMIENTO={random.randint(1990, 2024)}-{random.randint(1, 12)}-{random.randint(0,28):02d}",
-            #     f"NUMERO={random.randint(1, 10000)}",
-            #     # Don't try to match document/year, it doesn't make sense in this context
-            #     f"DOCUMENTO={random.randint(20_000_000, 40_000_000)}",
-            # ],
             "environment": {
                 "CLI_ID": i,
                 "CLI_LOG_LEVEL": "DEBUG",

@@ -94,7 +94,7 @@ func (c *Client) StartClientLoop() {
 
 			msg, err := bufio.NewReader(c.conn).ReadString('\n')
 			c.conn.Close()
-
+			// This checks the short-read, so no extra validation is needed
 			if err != nil {
 				log.Errorf("action: receive_message | result: fail | client_id: %v | error: %v",
 					c.config.ID,
@@ -117,7 +117,6 @@ func (c *Client) StartClientLoop() {
 
 // Tries to send all the bytes in string, returns the error raised if there is one
 func (c *Client) SendAll(message string) error {
-	log.Infof("message: %s", message)
 	for bytes_sent := 0; bytes_sent < len(message); {
 		bytes, err := fmt.Fprint(
 			c.conn,
@@ -135,4 +134,26 @@ func (c *Client) SendAll(message string) error {
 		bytes_sent += bytes
 	}
 	return nil
+}
+
+func (c *Client) SendBet(g *Gambler) {
+	// Protocol:
+	// 	- csv information with key=value format, and \n to delimit the message
+	// 	- Example:
+	// NOMBRE=Juan,APELLIDO=Perez,DOCUMENTO=11111111,NACIMIENTO=2020-03-03,NUMERO=1234\n
+	c.createClientSocket()
+
+	message :=
+		fmt.Sprintf("NOMBRE=%s,APELLIDO=%s,DOCUMENTO=%s,NACIMIENTO=%s,NUMERO=%s\n", g.name, g.surname, g.document, g.birthDate, g.gambledNumber)
+
+	err := c.SendAll(message)
+
+	if err != nil {
+		log.Errorf("action: send_bet | result: fail | client_id: %v | error: %v",
+			c.config.ID,
+			err,
+		)
+		return
+	}
+	log.Infof("action: apuesta_enviada | result: success | dni: %s | numero: %s", g.document, g.gambledNumber)
 }
