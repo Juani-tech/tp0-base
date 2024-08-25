@@ -36,8 +36,9 @@ class Server:
                 self.__handle_client_connection(client_sock)
             except OSError as e:
                 logging.error(
-                    "action: accept_new_connections | result: fail | error: {e}"
+                    f"action: accept_new_connections | result: fail | error: {e}"
                 )
+                return
 
     def __handle_client_connection(self, client_sock):
         """

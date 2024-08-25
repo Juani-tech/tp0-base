@@ -81,7 +81,6 @@ func (c *Client) StartClientLoop() {
 			return
 		default:
 			c.createClientSocket()
-
 			message := fmt.Sprintf("[CLIENT %v] Message N°%v\n", c.config.ID, msgID)
 			err := c.SendAll(message)
 

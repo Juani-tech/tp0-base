@@ -12,11 +12,13 @@ services:
     - server
     entrypoint: /client
     environment:
-      APELLIDO: Rodriguez
-      DOCUMENTO: '37981216'
-      NACIMIENTO: '2015-11-01'
-      NOMBRE: Juan
-      NUMERO: '1187'
+      CLI_APELLIDO: Rodriguez
+      CLI_DOCUMENTO: '37981216'
+      CLI_ID: 1
+      CLI_LOG_LEVEL: DEBUG
+      CLI_NACIMIENTO: '2015-11-01'
+      CLI_NOMBRE: Juan
+      CLI_NUMERO: '1187'
     image: client:latest
     networks:
     - testing_net
@@ -28,11 +30,13 @@ services:
     - server
     entrypoint: /client
     environment:
-      APELLIDO: Chiazza
-      DOCUMENTO: '22883910'
-      NACIMIENTO: 1993-9-06
-      NOMBRE: Santiago
-      NUMERO: '615'
+      CLI_APELLIDO: Chiazza
+      CLI_DOCUMENTO: '22883910'
+      CLI_ID: 2
+      CLI_LOG_LEVEL: DEBUG
+      CLI_NACIMIENTO: 1993-9-06
+      CLI_NOMBRE: Santiago
+      CLI_NUMERO: '615'
     image: client:latest
     networks:
     - testing_net
@@ -44,11 +48,13 @@ services:
     - server
     entrypoint: /client
     environment:
-      APELLIDO: Martinez
-      DOCUMENTO: '34244500'
-      NACIMIENTO: 1994-4-02
-      NOMBRE: Ignacio
-      NUMERO: '9029'
+      CLI_APELLIDO: Martinez
+      CLI_DOCUMENTO: '34244500'
+      CLI_ID: 3
+      CLI_LOG_LEVEL: DEBUG
+      CLI_NACIMIENTO: 1994-4-02
+      CLI_NOMBRE: Ignacio
+      CLI_NUMERO: '9029'
     image: client:latest
     networks:
     - testing_net
@@ -60,11 +66,13 @@ services:
     - server
     entrypoint: /client
     environment:
-      APELLIDO: Perez
-      DOCUMENTO: '22075745'
-      NACIMIENTO: '2004-11-20'
-      NOMBRE: Santiago
-      NUMERO: '9552'
+      CLI_APELLIDO: Perez
+      CLI_DOCUMENTO: '22075745'
+      CLI_ID: 4
+      CLI_LOG_LEVEL: DEBUG
+      CLI_NACIMIENTO: '2004-11-20'
+      CLI_NOMBRE: Santiago
+      CLI_NUMERO: '9552'
     image: client:latest
     networks:
     - testing_net
@@ -76,11 +84,13 @@ services:
     - server
     entrypoint: /client
     environment:
-      APELLIDO: Martinez
-      DOCUMENTO: '24468605'
-      NACIMIENTO: 1993-4-01
-      NOMBRE: Martin
-      NUMERO: '9121'
+      CLI_APELLIDO: Martinez
+      CLI_DOCUMENTO: '24468605'
+      CLI_ID: 5
+      CLI_LOG_LEVEL: DEBUG
+      CLI_NACIMIENTO: 1993-4-01
+      CLI_NOMBRE: Martin
+      CLI_NUMERO: '9121'
     image: client:latest
     networks:
     - testing_net

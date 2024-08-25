@@ -47,20 +47,33 @@ if __name__ == "__main__":
             "container_name": client_name,
             "image": "client:latest",
             "entrypoint": "/client",
-            "environment": [f"CLI_ID={i}", "CLI_LOG_LEVEL=DEBUG"],
+            # "environment": [
+            #     f"CLI_ID={i}",
+            #     "CLI_LOG_LEVEL=DEBUG",
+            #     f"NOMBRE={random.choice(names)}",
+            #     f"APELLIDO={random.choice(surnames)}",
+            #     # random.randint(0,28):02d -> adds left zero padding if necessary
+            #     # (up to 2 characters)
+            #     f"NACIMIENTO={random.randint(1990, 2024)}-{random.randint(1, 12)}-{random.randint(0,28):02d}",
+            #     f"NUMERO={random.randint(1, 10000)}",
+            #     # Don't try to match document/year, it doesn't make sense in this context
+            #     f"DOCUMENTO={random.randint(20_000_000, 40_000_000)}",
+            # ],
+            "environment": {
+                "CLI_ID": i,
+                "CLI_LOG_LEVEL": "DEBUG",
+                "CLI_NOMBRE": random.choice(names),
+                "CLI_APELLIDO": random.choice(surnames),
+                # random.randint(0,28):02d -> adds left zero padding if necessary
+                # (up to 2 characters)
+                "CLI_NACIMIENTO": f"{random.randint(1990, 2024)}-{random.randint(1, 12)}-{random.randint(0,28):02d}",
+                "CLI_NUMERO": f"{random.randint(1, 10000)}",
+                # Don't try to match document/year, it doesn't make sense in this context
+                "CLI_DOCUMENTO": f"{random.randint(20_000_000, 40_000_000)}",
+            },
             "networks": ["testing_net"],
             "depends_on": ["server"],
             "volumes": ["./client/config.yaml:/config.yaml"],
-            "environment": {
-                "NOMBRE": random.choice(names),
-                "APELLIDO": random.choice(surnames),
-                # random.randint(0,28):02d -> adds left zero padding if necessary
-                # (up to 2 characters)
-                "NACIMIENTO": f"{random.randint(1990, 2024)}-{random.randint(1, 12)}-{random.randint(0,28):02d}",
-                "NUMERO": f"{random.randint(1, 10000)}",
-                # Don't try to match document/year, it doesn't make sense in this context
-                "DOCUMENTO": f"{random.randint(20_000_000, 40_000_000)}",
-            },
         }
     # Open the file and save the result
     with open(sys.argv[1], "w") as yaml_file:
