@@ -1,6 +1,6 @@
+import random
 import sys
 import yaml
-import os
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
@@ -9,11 +9,8 @@ if __name__ == "__main__":
 
     output_path = sys.argv[1]
 
-    # if not os.path.isdir(os.path.dirname(output_path)):
-    #     print(f"Error: The path '{output_path}' is not a valid directory.")
-    #     sys.exit(1)
-
     try:
+        # Check validity of number of clients
         number_of_clients = int(sys.argv[2])
         if number_of_clients <= 0:
             raise ValueError
@@ -22,6 +19,7 @@ if __name__ == "__main__":
         print("Error: The second argument must be a positive integer.")
         sys.exit(1)
 
+    # Skeleton (starting point)
     data = {
         "name": "tp0",
         "services": {
@@ -39,7 +37,10 @@ if __name__ == "__main__":
             }
         },
     }
-
+    random.seed(7)
+    names = ["Santiago", "Pablo", "Juan", "Ignacio", "Martin"]
+    surnames = ["Perez", "Rodriguez", "Chiazza", "Martinez"]
+    # Iterate and add to the skeleton the new clients
     for i in range(1, number_of_clients + 1):
         client_name = f"client{i}"
         data["services"][client_name] = {
@@ -50,8 +51,18 @@ if __name__ == "__main__":
             "networks": ["testing_net"],
             "depends_on": ["server"],
             "volumes": ["./client/config.yaml:/config.yaml"],
+            "environment": {
+                "NOMBRE": random.choice(names),
+                "APELLIDO": random.choice(surnames),
+                # random.randint(0,28):02d -> adds left zero padding if necessary
+                # (up to 2 characters)
+                "NACIMIENTO": f"{random.randint(1990, 2024)}-{random.randint(1, 12)}-{random.randint(0,28):02d}",
+                "NUMERO": f"{random.randint(1, 10000)}",
+                # Don't try to match document/year, it doesn't make sense in this context
+                "DOCUMENTO": f"{random.randint(20_000_000, 40_000_000)}",
+            },
         }
-
+    # Open the file and save the result
     with open(sys.argv[1], "w") as yaml_file:
         yaml.dump(data, yaml_file, default_flow_style=False)
 

@@ -3,80 +3,95 @@ networks:
   testing_net:
     ipam:
       config:
-        - subnet: 172.25.125.0/24
+      - subnet: 172.25.125.0/24
       driver: default
 services:
   client1:
     container_name: client1
     depends_on:
-      - server
+    - server
     entrypoint: /client
     environment:
-      - CLI_ID=1
-      - CLI_LOG_LEVEL=DEBUG
+      APELLIDO: Rodriguez
+      DOCUMENTO: '37981216'
+      NACIMIENTO: '2015-11-01'
+      NOMBRE: Juan
+      NUMERO: '1187'
     image: client:latest
     networks:
-      - testing_net
+    - testing_net
     volumes:
-      - ./client/config.yaml:/config.yaml
+    - ./client/config.yaml:/config.yaml
   client2:
     container_name: client2
     depends_on:
-      - server
+    - server
     entrypoint: /client
     environment:
-      - CLI_ID=2
-      - CLI_LOG_LEVEL=DEBUG
+      APELLIDO: Chiazza
+      DOCUMENTO: '22883910'
+      NACIMIENTO: 1993-9-06
+      NOMBRE: Santiago
+      NUMERO: '615'
     image: client:latest
     networks:
-      - testing_net
+    - testing_net
     volumes:
-      - ./client/config.yaml:/config.yaml
+    - ./client/config.yaml:/config.yaml
   client3:
     container_name: client3
     depends_on:
-      - server
+    - server
     entrypoint: /client
     environment:
-      - CLI_ID=3
-      - CLI_LOG_LEVEL=DEBUG
+      APELLIDO: Martinez
+      DOCUMENTO: '34244500'
+      NACIMIENTO: 1994-4-02
+      NOMBRE: Ignacio
+      NUMERO: '9029'
     image: client:latest
     networks:
-      - testing_net
+    - testing_net
     volumes:
-      - ./client/config.yaml:/config.yaml
+    - ./client/config.yaml:/config.yaml
   client4:
     container_name: client4
     depends_on:
-      - server
+    - server
     entrypoint: /client
     environment:
-      - CLI_ID=4
-      - CLI_LOG_LEVEL=DEBUG
+      APELLIDO: Perez
+      DOCUMENTO: '22075745'
+      NACIMIENTO: '2004-11-20'
+      NOMBRE: Santiago
+      NUMERO: '9552'
     image: client:latest
     networks:
-      - testing_net
+    - testing_net
     volumes:
-      - ./client/config.yaml:/config.yaml
+    - ./client/config.yaml:/config.yaml
   client5:
     container_name: client5
     depends_on:
-      - server
+    - server
     entrypoint: /client
     environment:
-      - CLI_ID=5
-      - CLI_LOG_LEVEL=DEBUG
+      APELLIDO: Martinez
+      DOCUMENTO: '24468605'
+      NACIMIENTO: 1993-4-01
+      NOMBRE: Martin
+      NUMERO: '9121'
     image: client:latest
     networks:
-      - testing_net
+    - testing_net
     volumes:
-      - ./client/config.yaml:/config.yaml
+    - ./client/config.yaml:/config.yaml
   server:
     container_name: server
     entrypoint: python3 /main.py
     environment:
-      - PYTHONUNBUFFERED=1
-      - LOGGING_LEVEL=DEBUG
+    - PYTHONUNBUFFERED=1
+    - LOGGING_LEVEL=DEBUG
     image: server:latest
     networks:
-      - testing_net
+    - testing_net
