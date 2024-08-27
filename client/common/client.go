@@ -85,7 +85,7 @@ func (c *Client) StartClientLoop() {
 			c.config.ID,
 			msg,
 		)
-
+		c.conn.Close()
 		// Wait a time between sending one message and the next one
 		time.Sleep(c.config.LoopPeriod)
 	}
