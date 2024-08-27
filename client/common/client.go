@@ -113,6 +113,7 @@ func (c *Client) StartClientLoop() {
 				msg,
 			)
 
+			c.conn.Close()
 			// Wait a time between sending one message and the next one
 			time.Sleep(c.config.LoopPeriod)
 		}
@@ -167,5 +168,6 @@ func (c *Client) SendBet(g *Gambler) {
 		return
 	}
 
+	c.conn.Close()
 	log.Infof("action: apuesta_enviada | result: success | dni: %s | numero: %s", g.document, g.gambledNumber)
 }
