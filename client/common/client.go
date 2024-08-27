@@ -115,6 +115,14 @@ func (c *Client) StartClientLoop() {
 
 			// Wait a time between sending one message and the next one
 			time.Sleep(c.config.LoopPeriod)
+			err = c.conn.Close()
+			if err != nil {
+				log.Errorf("action: close_socket | result: fail | client_id: %v | error: %v",
+					c.config.ID,
+					err,
+				)
+				return
+			}
 		}
 	}
 	log.Infof("action: loop_finished | result: success | client_id: %v", c.config.ID)
@@ -122,7 +130,6 @@ func (c *Client) StartClientLoop() {
 
 // Tries to send all the bytes in string, returns the error raised if there is one
 func (c *Client) SendAll(message string) error {
-	fmt.Printf("sending: %s", message)
 	for bytes_sent := 0; bytes_sent < len(message); {
 		bytes, err := fmt.Fprint(
 			c.conn,
@@ -196,18 +203,38 @@ func (c *Client) SendBatchesOfBets(batchesOfBets []Batch, maxMessageSize int) er
 			return err
 		}
 
+		err = c.conn.Close()
+		if err != nil {
+			log.Errorf("action: close-socket | result: fail | client_id: %v | error: %v",
+				c.config.ID,
+				err,
+			)
+			return err
+		}
+
 	}
 	return nil
 }
 
-// Formats a batch to a protocol message style (csv with key=value)
-// note that I added a ":" at the end of each bet in order to separate them
+/*
+Formats a batch to a protocol message style (csv with key=value)
+Observation:
+  - Added a ":" at the end of each bet (except for the last one) in order to separate them
+  - Added the size of the batch
+*/
 func (c *Client) formatBatch(b Batch) string {
-	var formattedMessage string
+	formattedMessage := fmt.Sprintf("%d,", len(b))
 
-	for _, record := range b {
-		formattedMessage +=
-			fmt.Sprintf("AGENCIA=%s,NOMBRE=%s,APELLIDO=%s,DOCUMENTO=%s,NACIMIENTO=%s,NUMERO=%s:", c.config.ID, record[0], record[1], record[2], record[3], record[4])
+	for i, record := range b {
+
+		if i == len(b)-1 {
+			// Do not add ':' to our last record
+			formattedMessage +=
+				fmt.Sprintf("AGENCIA=%s,NOMBRE=%s,APELLIDO=%s,DOCUMENTO=%s,NACIMIENTO=%s,NUMERO=%s", c.config.ID, record[0], record[1], record[2], record[3], record[4])
+		} else {
+			formattedMessage +=
+				fmt.Sprintf("AGENCIA=%s,NOMBRE=%s,APELLIDO=%s,DOCUMENTO=%s,NACIMIENTO=%s,NUMERO=%s:", c.config.ID, record[0], record[1], record[2], record[3], record[4])
+		}
 
 	}
 	formattedMessage += "\n"
@@ -227,9 +254,10 @@ func min(a, b int) int {
 func (c *Client) sendMessageWithMaxSize(message string, maxMessageSize int) error {
 	index := 0
 	var nextIndex int
+	log.Infof("Sending: %s", message)
 	for {
 		nextIndex = min(index+maxMessageSize, len(message))
-		fmt.Println("nextIndex", nextIndex)
+
 		err := c.SendAll(message[index:nextIndex])
 
 		if err != nil {

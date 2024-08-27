@@ -3,7 +3,7 @@ import logging
 import signal
 import time
 
-from common.utils import Bet, parse_csv_kv, store_bets
+from common.utils import Bet, parse_batch_data, store_bets
 
 
 class Server:
@@ -66,15 +66,18 @@ class Server:
                     break
             return data
 
-        # # sendall allowed (?)
-        # def send_all(sock, data):
-        #     """Send all data through the socket, handling short-writes."""
-        #     total_sent = 0
-        #     while total_sent < len(data):
-        #         sent = sock.send(data[total_sent:])
-        #         if sent == 0:
-        #             raise OSError
-        #         total_sent += sent
+        # sendall allowed (?)
+        def send_all(sock, data):
+            """Send all data through the socket, handling short-writes."""
+            total_sent = 0
+            while total_sent < len(data):
+                sent = sock.send(data[total_sent:])
+                if sent == 0:
+                    raise OSError
+                total_sent += sent
+
+        # Have to declare it here, otherwise the except block woudln't be able to access it
+        batch_size = None
 
         try:
             msg = recv_all(client_sock, 1024).rstrip(b"\n").rstrip().decode("utf-8")
@@ -83,25 +86,26 @@ class Server:
             logging.info(
                 f"action: receive_message | result: success | ip: {addr[0]} | msg: {msg}"
             )
+            batch_size, data = msg.split(",", 1)
+            logging.info(f"Batch size: {batch_size}")
+            parsed_batch_data = parse_batch_data(data, batch_size)
 
-            # parsed_bet_data = parse_csv_kv(msg)
-            # # I guess it has to be a list for batching (ej6)
-            # store_bets(
-            #     [
-            #         Bet(
-            #             agency=parsed_bet_data["AGENCIA"],
-            #             first_name=parsed_bet_data["NOMBRE"],
-            #             last_name=parsed_bet_data["APELLIDO"],
-            #             document=parsed_bet_data["DOCUMENTO"],
-            #             birthdate=parsed_bet_data["NACIMIENTO"],
-            #             number=parsed_bet_data["NUMERO"],
-            #         )
-            #     ]
-            # )
+            # store_bets(parse_batch_data)
+
+            logging.info(
+                f"action: apuesta_recibida | result: success | cantidad: {batch_size }"
+            )
             # Not needed anymore
             # send_all(client_sock, "{}\n".format(msg).encode("utf-8"))
         except OSError as e:
             logging.error(f"action: receive_message | result: fail | error: {e}")
+
+        except (ValueError, RuntimeError) as e:
+            logging.error(
+                f"action: apuesta_recibida | result: fail | cantidad: {batch_size or 0}"
+            )
+
+            # SEND ERROR TO CLIENT HERE
         finally:
             client_sock.close()
 
