@@ -115,14 +115,6 @@ func (c *Client) StartClientLoop() {
 
 			// Wait a time between sending one message and the next one
 			time.Sleep(c.config.LoopPeriod)
-			err = c.conn.Close()
-			if err != nil {
-				log.Errorf("action: close_socket | result: fail | client_id: %v | error: %v",
-					c.config.ID,
-					err,
-				)
-				return
-			}
 		}
 	}
 	log.Infof("action: loop_finished | result: success | client_id: %v", c.config.ID)
@@ -130,10 +122,12 @@ func (c *Client) StartClientLoop() {
 
 // Tries to send all the bytes in string, returns the error raised if there is one
 func (c *Client) SendAll(message string) error {
-	for bytes_sent := 0; bytes_sent < len(message); {
+	for bytesSent := 0; bytesSent < len(message); {
+
+		log.Infof("Sending: %s", message)
 		bytes, err := fmt.Fprint(
 			c.conn,
-			message,
+			message[bytesSent:],
 		)
 
 		if err != nil {
@@ -144,7 +138,7 @@ func (c *Client) SendAll(message string) error {
 			return err
 		}
 
-		bytes_sent += bytes
+		bytesSent += bytes
 	}
 	return nil
 }
@@ -193,6 +187,7 @@ func (c *Client) SendBatchesOfBets(batchesOfBets []Batch, maxMessageSize int) er
 		}
 
 		message = c.formatBatch(batch)
+
 		err = c.sendMessageWithMaxSize(message, maxMessageSize)
 
 		if err != nil {
@@ -203,14 +198,21 @@ func (c *Client) SendBatchesOfBets(batchesOfBets []Batch, maxMessageSize int) er
 			return err
 		}
 
-		err = c.conn.Close()
+		msg, err := bufio.NewReader(c.conn).ReadString('\n')
+		c.conn.Close()
+
 		if err != nil {
-			log.Errorf("action: close-socket | result: fail | client_id: %v | error: %v",
+			log.Errorf("action: close_socket | result: fail | client_id: %v | error: %v",
 				c.config.ID,
 				err,
 			)
 			return err
 		}
+
+		log.Infof("action: server_response | result: success | client_id: %v | response: %v",
+			c.config.ID,
+			msg,
+		)
 
 	}
 	return nil
@@ -238,7 +240,6 @@ func (c *Client) formatBatch(b Batch) string {
 
 	}
 	formattedMessage += "\n"
-
 	return formattedMessage
 }
 
@@ -254,10 +255,8 @@ func min(a, b int) int {
 func (c *Client) sendMessageWithMaxSize(message string, maxMessageSize int) error {
 	index := 0
 	var nextIndex int
-	log.Infof("Sending: %s", message)
 	for {
 		nextIndex = min(index+maxMessageSize, len(message))
-
 		err := c.SendAll(message[index:nextIndex])
 
 		if err != nil {

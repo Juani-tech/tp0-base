@@ -44,6 +44,33 @@ class Server:
                 logging.error(f"action: accept_new_connections | result: terminated")
                 return
 
+    def __recv_all(self, sock, buffer_size):
+        """Receive all data from the socket, handling short-reads."""
+        data = b""
+        while True:
+            part = sock.recv(buffer_size)
+            logging.info(f"Received: {part}")
+            if len(part) == 0:
+                # The other side closed the connection
+                raise OSError
+
+            data += part
+
+            if b"\n" in part:
+                # End of the message
+                break
+        return data
+
+    # sendall allowed (?)
+    def __send_all(self, sock, data):
+        """Send all data through the socket, handling short-writes."""
+        total_sent = 0
+        while total_sent < len(data):
+            sent = sock.send(data[total_sent:])
+            if sent == 0:
+                raise OSError
+            total_sent += sent
+
     def __handle_client_connection(self, client_sock):
         """
         Read message from a specific client socket and close the socket.
@@ -52,60 +79,40 @@ class Server:
         client socket will also be closed.
         """
 
-        def recv_all(sock, buffer_size):
-            """Receive all data from the socket, handling short-reads."""
-            data = b""
-            while True:
-                part = sock.recv(buffer_size)
-                if len(part) == 0:
-                    # The other side closed the connection
-                    raise OSError
-                elif b"\n" in part:
-                    data += part
-                    # End of the message
-                    break
-            return data
-
-        # sendall allowed (?)
-        def send_all(sock, data):
-            """Send all data through the socket, handling short-writes."""
-            total_sent = 0
-            while total_sent < len(data):
-                sent = sock.send(data[total_sent:])
-                if sent == 0:
-                    raise OSError
-                total_sent += sent
-
         # Have to declare it here, otherwise the except block woudln't be able to access it
         batch_size = None
 
         try:
-            msg = recv_all(client_sock, 1024).rstrip(b"\n").rstrip().decode("utf-8")
+            msg = (
+                self.__recv_all(client_sock, 1024)
+                .rstrip(b"\n")
+                .rstrip()
+                .decode("utf-8")
+            )
             addr = client_sock.getpeername()
 
             logging.info(
                 f"action: receive_message | result: success | ip: {addr[0]} | msg: {msg}"
             )
             batch_size, data = msg.split(",", 1)
-            logging.info(f"Batch size: {batch_size}")
-            parsed_batch_data = parse_batch_data(data, batch_size)
 
-            # store_bets(parse_batch_data)
+            parsed_batch_data = parse_batch_data(data, int(batch_size))
+            store_bets(parsed_batch_data)
 
             logging.info(
-                f"action: apuesta_recibida | result: success | cantidad: {batch_size }"
+                f"action: apuesta_recibida | result: success | cantidad: {batch_size}"
             )
-            # Not needed anymore
-            # send_all(client_sock, "{}\n".format(msg).encode("utf-8"))
+            # Send success to the client
+            self.__send_all(client_sock, "{}\n".format("EXITO").encode("utf-8"))
+        except (ValueError, RuntimeError) as e:
+            logging.error(
+                f"action: apuesta_recibida | result: fail | error: {e} cantidad: {batch_size or 0}"
+            )
+            # Send error to the client
+            self.__send_all(client_sock, "{}\n".format("ERROR").encode("utf-8"))
         except OSError as e:
             logging.error(f"action: receive_message | result: fail | error: {e}")
 
-        except (ValueError, RuntimeError) as e:
-            logging.error(
-                f"action: apuesta_recibida | result: fail | cantidad: {batch_size or 0}"
-            )
-
-            # SEND ERROR TO CLIENT HERE
         finally:
             client_sock.close()
 

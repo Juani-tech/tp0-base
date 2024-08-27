@@ -66,7 +66,9 @@ func BatchOfBetsFromCsvFile(filePath string, batchSize int) ([]Batch, error) {
 	for {
 		record, err := reader.Read()
 		if err == io.EOF {
-			batchesOfBets = append(batchesOfBets, actualBatch)
+			if len(actualBatch) > 0 {
+				batchesOfBets = append(batchesOfBets, actualBatch)
+			}
 			break
 		}
 
@@ -76,6 +78,7 @@ func BatchOfBetsFromCsvFile(filePath string, batchSize int) ([]Batch, error) {
 		}
 
 		actualBatch = append(actualBatch, record)
+
 		if len(actualBatch) == batchSize {
 			batchesOfBets = append(batchesOfBets, actualBatch)
 			actualBatch = make(Batch, 0)

@@ -113,8 +113,6 @@ func main() {
 	}
 
 	client := common.NewClient(clientConfig)
-	// bet := common.NewBetFromENV()
-	// client.SendBet(bet)
 	batchesOfBets, err := common.BatchOfBetsFromCsvFile("./data.csv", 10)
 	if err != nil {
 		log.Criticalf("%s", err)
