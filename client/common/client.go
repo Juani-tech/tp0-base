@@ -122,6 +122,7 @@ func (c *Client) StartClientLoop() {
 
 // Tries to send all the bytes in string, returns the error raised if there is one
 func (c *Client) SendAll(message string) error {
+	fmt.Printf("sending: %s", message)
 	for bytes_sent := 0; bytes_sent < len(message); {
 		bytes, err := fmt.Fprint(
 			c.conn,
@@ -141,7 +142,7 @@ func (c *Client) SendAll(message string) error {
 	return nil
 }
 
-func (c *Client) SendBet(g *Gambler) {
+func (c *Client) SendBet(g *Bet) {
 	// Protocol:
 	// 	- csv information with key=value format, and \n to delimit the message
 	// 	- Example:
@@ -168,4 +169,82 @@ func (c *Client) SendBet(g *Gambler) {
 	}
 
 	log.Infof("action: apuesta_enviada | result: success | dni: %s | numero: %s", g.document, g.gambledNumber)
+}
+
+// maxBatchSize represents the maximum amount of bytes sent per message
+func (c *Client) SendBatchesOfBets(batchesOfBets []Batch, maxMessageSize int) error {
+	var message string
+	for _, batch := range batchesOfBets {
+		err := c.createClientSocket()
+
+		if err != nil {
+			log.Criticalf("action: create_client_socket | result: fail | client_id: %v | error: %v",
+				c.config.ID,
+				err,
+			)
+			return err
+		}
+
+		message = c.formatBatch(batch)
+		err = c.sendMessageWithMaxSize(message, maxMessageSize)
+
+		if err != nil {
+			log.Errorf("action: send_batches_of_bets | result: fail | client_id: %v | error: %v",
+				c.config.ID,
+				err,
+			)
+			return err
+		}
+
+	}
+	return nil
+}
+
+// Formats a batch to a protocol message style (csv with key=value)
+// note that I added a ":" at the end of each bet in order to separate them
+func (c *Client) formatBatch(b Batch) string {
+	var formattedMessage string
+
+	for _, record := range b {
+		formattedMessage +=
+			fmt.Sprintf("AGENCIA=%s,NOMBRE=%s,APELLIDO=%s,DOCUMENTO=%s,NACIMIENTO=%s,NUMERO=%s:", c.config.ID, record[0], record[1], record[2], record[3], record[4])
+
+	}
+	formattedMessage += "\n"
+
+	return formattedMessage
+}
+
+// There's no min func until go 1.21!! (using version 1.17) D:
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+// Sends a given message in chunks of maximum bytes: maxMessageSize
+func (c *Client) sendMessageWithMaxSize(message string, maxMessageSize int) error {
+	index := 0
+	var nextIndex int
+	for {
+		nextIndex = min(index+maxMessageSize, len(message))
+		fmt.Println("nextIndex", nextIndex)
+		err := c.SendAll(message[index:nextIndex])
+
+		if err != nil {
+			log.Errorf("action: send_message_with_max_size | result: fail | client_id: %v | error: %v",
+				c.config.ID,
+				err,
+			)
+			return err
+		}
+
+		if nextIndex == len(message) {
+			break
+		}
+		index = nextIndex
+	}
+
+	return nil
 }

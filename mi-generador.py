@@ -72,7 +72,10 @@ if __name__ == "__main__":
             },
             "networks": ["testing_net"],
             "depends_on": ["server"],
-            "volumes": ["./client/config.yaml:/config.yaml"],
+            "volumes": [
+                "./client/config.yaml:/config.yaml",
+                f"./.data/agency-{i}.csv:/data.csv",
+            ],
         }
     # Open the file and save the result
     with open(sys.argv[1], "w") as yaml_file:

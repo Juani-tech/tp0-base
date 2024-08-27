@@ -84,20 +84,20 @@ class Server:
                 f"action: receive_message | result: success | ip: {addr[0]} | msg: {msg}"
             )
 
-            parsed_bet_data = parse_csv_kv(msg)
-            # I guess it has to be a list for batching (ej6)
-            store_bets(
-                [
-                    Bet(
-                        agency=parsed_bet_data["AGENCIA"],
-                        first_name=parsed_bet_data["NOMBRE"],
-                        last_name=parsed_bet_data["APELLIDO"],
-                        document=parsed_bet_data["DOCUMENTO"],
-                        birthdate=parsed_bet_data["NACIMIENTO"],
-                        number=parsed_bet_data["NUMERO"],
-                    )
-                ]
-            )
+            # parsed_bet_data = parse_csv_kv(msg)
+            # # I guess it has to be a list for batching (ej6)
+            # store_bets(
+            #     [
+            #         Bet(
+            #             agency=parsed_bet_data["AGENCIA"],
+            #             first_name=parsed_bet_data["NOMBRE"],
+            #             last_name=parsed_bet_data["APELLIDO"],
+            #             document=parsed_bet_data["DOCUMENTO"],
+            #             birthdate=parsed_bet_data["NACIMIENTO"],
+            #             number=parsed_bet_data["NUMERO"],
+            #         )
+            #     ]
+            # )
             # Not needed anymore
             # send_all(client_sock, "{}\n".format(msg).encode("utf-8"))
         except OSError as e:
