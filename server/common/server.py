@@ -49,7 +49,6 @@ class Server:
         data = b""
         while True:
             part = sock.recv(buffer_size)
-            logging.info(f"Received: {part}")
             if len(part) == 0:
                 # The other side closed the connection
                 raise OSError
