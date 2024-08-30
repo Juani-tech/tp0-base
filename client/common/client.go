@@ -46,7 +46,7 @@ func NewClient(config ClientConfig) *Client {
 	// until SIGTERM is received
 	go func() {
 		sig := <-sigs
-		log.Infof("action: signal_received | result: success | signal: %v | client_id: %v", sig, config.ID)
+		log.Debugf("action: signal_received | result: success | signal: %v | client_id: %v", sig, config.ID)
 		stop <- true
 	}()
 
@@ -81,7 +81,7 @@ func (c *Client) StartClientLoop() {
 		// The select statement lets a goroutine wait on multiple communication operations.
 		select {
 		case <-c.stop:
-			log.Infof("action: loop_terminated | result: interrupted | client_id: %v", c.config.ID)
+			log.Debugf("action: loop_terminated | result: interrupted | client_id: %v", c.config.ID)
 			c.conn.Close()
 			return
 		default:
@@ -90,7 +90,7 @@ func (c *Client) StartClientLoop() {
 			err := c.SendAll(message)
 
 			if err != nil {
-				log.Errorf("action: send_message | result: fail | client_id: %v | error: %v",
+				log.Debugf("action: send_message | result: fail | client_id: %v | error: %v",
 					c.config.ID,
 					err,
 				)
@@ -130,7 +130,7 @@ func (c *Client) SendAll(message string) error {
 		)
 
 		if err != nil {
-			log.Errorf("action: send_message | result: fail | client_id: %v | error: %v",
+			log.Debugf("action: send_message | result: fail | client_id: %v | error: %v",
 				c.config.ID,
 				err,
 			)
@@ -149,7 +149,7 @@ func (c *Client) SendBet(g *Gambler) {
 	// NOMBRE=Juan,APELLIDO=Perez,DOCUMENTO=11111111,NACIMIENTO=2020-03-03,NUMERO=1234\n
 	err := c.createClientSocket()
 	if err != nil {
-		log.Errorf("action: send_bet | result: fail | client_id: %v | error: %v",
+		log.Debugf("action: send_bet | result: fail | client_id: %v | error: %v",
 			c.config.ID,
 			err,
 		)
@@ -161,7 +161,7 @@ func (c *Client) SendBet(g *Gambler) {
 	err = c.SendAll(message)
 
 	if err != nil {
-		log.Errorf("action: send_bet | result: fail | client_id: %v | error: %v",
+		log.Debugf("action: send_bet | result: fail | client_id: %v | error: %v",
 			c.config.ID,
 			err,
 		)
