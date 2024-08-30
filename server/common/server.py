@@ -41,7 +41,7 @@ class Server:
                 client_sock = self.__accept_new_connection()
                 self.__handle_client_connection(client_sock)
             except OSError:
-                logging.error(f"action: accept_new_connections | result: terminated")
+                logging.debug(f"action: accept_new_connections | result: terminated")
                 return
 
     def __handle_client_connection(self, client_sock):
