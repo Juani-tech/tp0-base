@@ -8,3 +8,5 @@ log:
   level: "INFO"
 batch:
   maxAmount: 10
+message:
+  maxSize: 8192 

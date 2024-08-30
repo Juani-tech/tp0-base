@@ -38,6 +38,7 @@ func InitConfig() (*viper.Viper, error) {
 	v.BindEnv("loop", "amount")
 	v.BindEnv("log", "level")
 	v.BindEnv("batch", "maxAmount")
+	v.BindEnv("message", "maxSize")
 
 	// Try to read configuration from config file. If config file
 	// does not exists then ReadInConfig will fail but configuration
@@ -82,13 +83,12 @@ func InitLogger(logLevel string) error {
 // PrintConfig Print all the configuration parameters of the program.
 // For debugging purposes only
 func PrintConfig(v *viper.Viper) {
-	log.Infof("action: config | result: success | client_id: %s | server_address: %s | loop_amount: %v | loop_period: %v | log_level: %s | batch_max_amount: %s",
+	log.Infof("action: config | result: success | client_id: %s | server_address: %s | loop_amount: %v | loop_period: %v | log_level: %s",
 		v.GetString("id"),
 		v.GetString("server.address"),
 		v.GetInt("loop.amount"),
 		v.GetDuration("loop.period"),
 		v.GetString("log.level"),
-		v.GetString("batch.maxAmount"),
 	)
 }
 
@@ -113,14 +113,14 @@ func main() {
 	}
 
 	client := common.NewClient(clientConfig)
-	batchesOfBets, err := common.BatchOfBetsFromCsvFile("./data.csv", 10)
+	batchesOfBets, err := common.BatchOfBetsFromCsvFile("./data.csv", v.GetInt("batch.maxAmount"))
 	if err != nil {
-		log.Criticalf("%s", err)
+		log.Debugf("%s", err)
 		return
 	}
-	err = client.SendBatchesOfBets(batchesOfBets, 8*1024)
+	err = client.SendBatchesOfBets(batchesOfBets, v.GetInt("message.maxSize"))
 	if err != nil {
-		log.Criticalf("%s", err)
+		log.Debugf("%s", err)
 		return
 	}
 

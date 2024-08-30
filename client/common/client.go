@@ -46,7 +46,7 @@ func NewClient(config ClientConfig) *Client {
 	// until SIGTERM is received
 	go func() {
 		sig := <-sigs
-		log.Infof("action: signal_received | result: success | signal: %v | client_id: %v", sig, config.ID)
+		log.Debugf("action: signal_received | result: success | signal: %v | client_id: %v", sig, config.ID)
 		stop <- true
 	}()
 
@@ -81,7 +81,7 @@ func (c *Client) StartClientLoop() {
 		// The select statement lets a goroutine wait on multiple communication operations.
 		select {
 		case <-c.stop:
-			log.Infof("action: loop_terminated | result: interrupted | client_id: %v", c.config.ID)
+			log.Debugf("action: loop_terminated | result: interrupted | client_id: %v", c.config.ID)
 			c.conn.Close()
 			return
 		default:
@@ -124,14 +124,13 @@ func (c *Client) StartClientLoop() {
 func (c *Client) SendAll(message string) error {
 	for bytesSent := 0; bytesSent < len(message); {
 
-		log.Infof("Sending: %s", message)
 		bytes, err := fmt.Fprint(
 			c.conn,
 			message[bytesSent:],
 		)
 
 		if err != nil {
-			log.Errorf("action: send_message | result: fail | client_id: %v | error: %v",
+			log.Debugf("action: send_message | result: fail | client_id: %v | error: %v",
 				c.config.ID,
 				err,
 			)
@@ -150,7 +149,7 @@ func (c *Client) SendBet(g *Bet) {
 	// NOMBRE=Juan,APELLIDO=Perez,DOCUMENTO=11111111,NACIMIENTO=2020-03-03,NUMERO=1234\n
 	err := c.createClientSocket()
 	if err != nil {
-		log.Errorf("action: send_bet | result: fail | client_id: %v | error: %v",
+		log.Debugf("action: send_bet | result: fail | client_id: %v | error: %v",
 			c.config.ID,
 			err,
 		)
@@ -162,7 +161,7 @@ func (c *Client) SendBet(g *Bet) {
 	err = c.SendAll(message)
 
 	if err != nil {
-		log.Errorf("action: send_bet | result: fail | client_id: %v | error: %v",
+		log.Debugf("action: send_bet | result: fail | client_id: %v | error: %v",
 			c.config.ID,
 			err,
 		)
@@ -191,7 +190,7 @@ func (c *Client) SendBatchesOfBets(batchesOfBets []Batch, maxMessageSize int) er
 		err = c.sendMessageWithMaxSize(message, maxMessageSize)
 
 		if err != nil {
-			log.Errorf("action: send_batches_of_bets | result: fail | client_id: %v | error: %v",
+			log.Debugf("action: send_batches_of_bets | result: fail | client_id: %v | error: %v",
 				c.config.ID,
 				err,
 			)
@@ -202,14 +201,14 @@ func (c *Client) SendBatchesOfBets(batchesOfBets []Batch, maxMessageSize int) er
 		c.conn.Close()
 
 		if err != nil {
-			log.Errorf("action: close_socket | result: fail | client_id: %v | error: %v",
+			log.Debugf("action: close_socket | result: fail | client_id: %v | error: %v",
 				c.config.ID,
 				err,
 			)
 			return err
 		}
 
-		log.Infof("action: server_response | result: success | client_id: %v | response: %v",
+		log.Debugf("action: server_response | result: success | client_id: %v | response: %v",
 			c.config.ID,
 			msg,
 		)
@@ -260,7 +259,7 @@ func (c *Client) sendMessageWithMaxSize(message string, maxMessageSize int) erro
 		err := c.SendAll(message[index:nextIndex])
 
 		if err != nil {
-			log.Errorf("action: send_message_with_max_size | result: fail | client_id: %v | error: %v",
+			log.Debugf("action: send_message_with_max_size | result: fail | client_id: %v | error: %v",
 				c.config.ID,
 				err,
 			)

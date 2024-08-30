@@ -30,7 +30,7 @@ func NewBetFromENV() *Bet {
 	v.BindEnv("nacimiento")
 	v.BindEnv("numero")
 
-	log.Infof("action: config_bet | result: success | name: %s | surname: %s | document: %v | birthDate: %v | number: %s",
+	log.Debugf("action: config_bet | result: success | name: %s | surname: %s | document: %v | birthDate: %v | number: %s",
 		v.GetString("nombre"),
 		v.GetString("apellido"),
 		v.GetString("documento"),
@@ -52,7 +52,7 @@ func BatchOfBetsFromCsvFile(filePath string, batchSize int) ([]Batch, error) {
 	file, err := os.Open(filePath)
 
 	if err != nil {
-		log.Criticalf("action: open_csv | result: fail | filepath: %s | err: %s", filePath, err)
+		log.Debugf("action: open_csv | result: fail | filepath: %s | err: %s", filePath, err)
 		return nil, err
 	}
 
@@ -73,7 +73,7 @@ func BatchOfBetsFromCsvFile(filePath string, batchSize int) ([]Batch, error) {
 		}
 
 		if err != nil {
-			log.Criticalf("action: read_csv | result: fail | filepath: %s | err: %s", filePath, err)
+			log.Debugf("action: read_csv | result: fail | filepath: %s | err: %s", filePath, err)
 			return nil, err
 		}
 
