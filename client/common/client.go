@@ -64,7 +64,7 @@ func (c *Client) StartClientLoop() {
 		err := c.SendAll(message)
 
 		if err != nil {
-			log.Errorf("action: send_message | result: fail | client_id: %v | error: %v",
+			log.Debugf("action: send_message | result: fail | client_id: %v | error: %v",
 				c.config.ID,
 				err,
 			)
@@ -96,7 +96,6 @@ func (c *Client) StartClientLoop() {
 
 // Tries to send all the bytes in string, returns the error raised if there is one
 func (c *Client) SendAll(message string) error {
-	log.Infof("message: %s", message)
 	for bytes_sent := 0; bytes_sent < len(message); {
 		bytes, err := fmt.Fprint(
 			c.conn,
@@ -104,7 +103,7 @@ func (c *Client) SendAll(message string) error {
 		)
 
 		if err != nil {
-			log.Errorf("action: send_message | result: fail | client_id: %v | error: %v",
+			log.Debugf("action: send_message | result: fail | client_id: %v | error: %v",
 				c.config.ID,
 				err,
 			)
