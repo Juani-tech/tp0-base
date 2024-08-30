@@ -64,7 +64,7 @@ func (c *Client) StartClientLoop() {
 	// until SIGTERM is received
 	go func() {
 		sig := <-sigs
-		log.Infof("action: signal_received | result: success | signal: %v | client_id: %v", sig, c.config.ID)
+		log.Debugf("action: signal_received | result: success | signal: %v | client_id: %v", sig, c.config.ID)
 		stop <- true
 	}()
 
@@ -76,7 +76,7 @@ func (c *Client) StartClientLoop() {
 		// The select statement lets a goroutine wait on multiple communication operations.
 		select {
 		case <-stop:
-			log.Infof("action: loop_terminated | result: interrupted | client_id: %v", c.config.ID)
+			log.Debugf("action: loop_terminated | result: interrupted | client_id: %v", c.config.ID)
 			c.conn.Close()
 			return
 		default:
@@ -86,7 +86,7 @@ func (c *Client) StartClientLoop() {
 			err := c.SendAll(message)
 
 			if err != nil {
-				log.Errorf("action: send_message | result: fail | client_id: %v | error: %v",
+				log.Debugf("action: send_message | result: fail | client_id: %v | error: %v",
 					c.config.ID,
 					err,
 				)
@@ -119,7 +119,6 @@ func (c *Client) StartClientLoop() {
 
 // Tries to send all the bytes in string, returns the error raised if there is one
 func (c *Client) SendAll(message string) error {
-	log.Infof("message: %s", message)
 	for bytes_sent := 0; bytes_sent < len(message); {
 		bytes, err := fmt.Fprint(
 			c.conn,
@@ -127,7 +126,7 @@ func (c *Client) SendAll(message string) error {
 		)
 
 		if err != nil {
-			log.Errorf("action: send_message | result: fail | client_id: %v | error: %v",
+			log.Debugf("action: send_message | result: fail | client_id: %v | error: %v",
 				c.config.ID,
 				err,
 			)
