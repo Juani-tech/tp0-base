@@ -69,6 +69,76 @@ class Server:
                 raise OSError
             total_sent += sent
 
+    def __validate_bet_data(self, data):
+        expected_keys = [
+            "AGENCIA",
+            "NOMBRE",
+            "APELLIDO",
+            "DOCUMENTO",
+            "NACIMIENTO",
+            "NUMERO",
+        ]
+        for key in expected_keys:
+            if key not in data.keys():
+                raise RuntimeError("Missing data: ", key)
+
+    """ 
+    Parses a message with the format: K1=V1,K2=V2,...,Kn=Vn and returns a Bet object.
+    Raises an exception if the data is not correctly formatted, or something is misising 
+    """
+
+    def __parse_csv_kv(self, msg):
+        data = dict()
+        # Split by comma, leaving a list of [Key=Value, ...] values
+        separated_csv = msg.split(",")
+
+        for kv in separated_csv:
+            if "=" not in kv:
+                raise ValueError(f"Invalid key-value pair format: '{kv}'")
+
+            # Split by "=", leaving a (key,value) pair
+            k, v = kv.split("=")
+
+            k = k.strip()
+            v = v.strip()
+
+            if not k:
+                raise ValueError(f"Empty key found in: '{kv}'")
+            if not v:
+                raise ValueError(f"Empty value found for key '{k}'")
+
+            if k in data:
+                raise ValueError(f"Duplicate key found: '{k}'")
+
+            data[k] = v
+
+        self.__validate_bet_data(data)
+
+        bet = Bet(
+            agency=data["AGENCIA"],
+            first_name=data["NOMBRE"],
+            last_name=data["APELLIDO"],
+            document=data["DOCUMENTO"],
+            birthdate=data["NACIMIENTO"],
+            number=data["NUMERO"],
+        )
+
+        return bet
+
+    def __parse_batch_data(self, batch, expectedBatchSize):
+        if not batch:
+            raise ValueError("Batch data is empty")
+
+        records = batch.split(":")
+        bets = [self.__parse_csv_kv(record) for record in records]
+
+        if len(bets) != expectedBatchSize:
+            raise RuntimeError(
+                f"Expected batch size: {expectedBatchSize}, got batch of: {len(bets)}"
+            )
+
+        return bets
+
     def __handle_client_connection(self, client_sock):
         """
         Read message from a specific client socket and close the socket.
@@ -94,7 +164,7 @@ class Server:
             )
             batch_size, data = msg.split(",", 1)
 
-            parsed_batch_data = parse_batch_data(data, int(batch_size))
+            parsed_batch_data = self.__parse_batch_data(data, int(batch_size))
             store_bets(parsed_batch_data)
 
             logging.info(
