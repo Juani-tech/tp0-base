@@ -113,12 +113,20 @@ func main() {
 	}
 
 	client := common.NewClient(clientConfig)
+
 	batchesOfBets, err := common.BatchOfBetsFromCsvFile("./data.csv", v.GetInt("batch.maxAmount"))
 	if err != nil {
 		log.Debugf("%s", err)
 		return
 	}
+
 	err = client.SendBatchesOfBets(batchesOfBets, v.GetInt("message.maxSize"))
+	if err != nil {
+		log.Debugf("%s", err)
+		return
+	}
+
+	err = client.NotifyEndOfBatches(v.GetInt("message.maxSize"))
 	if err != nil {
 		log.Debugf("%s", err)
 		return

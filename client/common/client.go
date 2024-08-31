@@ -235,7 +235,7 @@ Observation:
   - Added the size of the batch
 */
 func (c *Client) formatBatch(b Batch) string {
-	formattedMessage := fmt.Sprintf("%d,", len(b))
+	formattedMessage := fmt.Sprintf("BATCH,%d,", len(b))
 
 	for i, record := range b {
 		if betHasDelimiters(record) {
@@ -284,6 +284,30 @@ func (c *Client) sendMessageWithMaxSize(message string, maxMessageSize int) erro
 			break
 		}
 		index = nextIndex
+	}
+
+	return nil
+}
+
+func (c *Client) NotifyEndOfBatches(maxMessageSize int) error {
+	message := fmt.Sprintf("FIN,AGENCIA=%s\n", c.config.ID)
+	err := c.createClientSocket()
+
+	if err != nil {
+		log.Debugf("action: create_client_socket | result: fail | client_id: %v | error: %v",
+			c.config.ID,
+			err,
+		)
+		return err
+	}
+
+	err = c.sendMessageWithMaxSize(message, maxMessageSize)
+
+	c.conn.Close()
+
+	if err != nil {
+		log.Debugf("action: notify_server | result: fail | error: %v", err)
+		return err
 	}
 
 	return nil
