@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -217,6 +218,16 @@ func (c *Client) SendBatchesOfBets(batchesOfBets []Batch, maxMessageSize int) er
 	return nil
 }
 
+func betHasDelimiters(record []string) bool {
+	for _, value := range record {
+		if strings.Contains(value, "\n") || strings.Contains(value, ":") {
+			log.Debugf("The value: %s contains an invalid character (\\n or :)", value)
+			return true
+		}
+	}
+	return false
+}
+
 /*
 Formats a batch to a protocol message style (csv with key=value)
 Observation:
@@ -227,7 +238,10 @@ func (c *Client) formatBatch(b Batch) string {
 	formattedMessage := fmt.Sprintf("%d,", len(b))
 
 	for i, record := range b {
-
+		if betHasDelimiters(record) {
+			log.Debugf("Invalid record: %s", record)
+			continue
+		}
 		if i == len(b)-1 {
 			// Do not add ':' to our last record
 			formattedMessage +=
