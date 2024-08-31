@@ -3,7 +3,7 @@ import logging
 import signal
 import time
 
-from common.utils import Bet, parse_batch_data, store_bets
+from common.utils import Bet, store_bets
 
 
 class Server:
