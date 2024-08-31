@@ -212,6 +212,7 @@ class Server:
     def __send_results_to_waiting_agencies(self, agency_number, agency_socket):
 
         winners = winners_for_agency(agency_number)
+        logging.debug(f"WINNERS: {winners}")
         msg = "{}".format(self.__format_winners(winners)).encode("utf-8")
 
         logging.debug(f"Enviando a la agencia: {agency_number} | msg: {msg}")
