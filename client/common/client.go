@@ -3,6 +3,7 @@ package common
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"os/signal"
@@ -290,7 +291,6 @@ func (c *Client) sendMessageWithMaxSize(message string, maxMessageSize int) erro
 }
 
 func (c *Client) NotifyEndOfBatches(maxMessageSize int) error {
-	message := fmt.Sprintf("FIN,AGENCIA=%s\n", c.config.ID)
 	err := c.createClientSocket()
 
 	if err != nil {
@@ -301,6 +301,7 @@ func (c *Client) NotifyEndOfBatches(maxMessageSize int) error {
 		return err
 	}
 
+	message := fmt.Sprintf("FIN,AGENCIA=%s\n", c.config.ID)
 	err = c.sendMessageWithMaxSize(message, maxMessageSize)
 
 	c.conn.Close()
@@ -311,4 +312,46 @@ func (c *Client) NotifyEndOfBatches(maxMessageSize int) error {
 	}
 
 	return nil
+}
+
+func (c *Client) parseWinners(message string) error {
+	return nil
+}
+
+func (c *Client) AskForWinners(maxMessageSize int) error {
+	for {
+		err := c.createClientSocket()
+
+		if err != nil {
+			log.Debugf("action: create_client_socket | result: fail | client_id: %v | error: %v",
+				c.config.ID,
+				err,
+			)
+			return err
+		}
+
+		message := fmt.Sprintf("GANADORES,AGENCIA=%s\n", c.config.ID)
+
+		err = c.sendMessageWithMaxSize(message, maxMessageSize)
+		if err != nil {
+			log.Debugf("action: ask_winners | result: fail | error: %v", err)
+			return err
+		}
+
+		msg, err := bufio.NewReader(c.conn).ReadString('\n')
+
+		c.conn.Close()
+
+		if err == io.EOF {
+			time.Sleep(2 * time.Second)
+			continue
+		} else if err != nil {
+			log.Debugf("action: receive_winners | result: fail | error: %v", err)
+			return err
+		}
+
+		log.Debugf("Received winners: %s", msg)
+		return nil
+	}
+
 }

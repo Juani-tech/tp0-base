@@ -132,4 +132,10 @@ func main() {
 		return
 	}
 
+	err = client.AskForWinners(v.GetInt("message.maxSize"))
+
+	if err != nil {
+		log.Debugf("%s", err)
+		return
+	}
 }

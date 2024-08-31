@@ -79,3 +79,7 @@ def load_bets() -> list[Bet]:
         reader = csv.reader(file, quoting=csv.QUOTE_MINIMAL)
         for row in reader:
             yield Bet(row[0], row[1], row[2], row[3], row[4], row[5])
+
+
+def winners_for_agency(agency):
+    return [bet.document for bet in load_bets() if bet.agency == agency]

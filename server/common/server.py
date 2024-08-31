@@ -2,7 +2,7 @@ import socket
 import logging
 import signal
 
-from common.utils import Bet, store_bets
+from common.utils import Bet, store_bets, winners_for_agency
 
 
 class Server:
@@ -139,6 +139,11 @@ class Server:
 
         return bet
 
+    """
+    Returns a list with all the records from a batch, checks if the length
+    of the received batch is the same as the announced
+    """
+
     def __parse_batch_data(self, batch, expectedBatchSize):
         if not batch:
             raise ValueError("Batch data is empty")
@@ -179,6 +184,10 @@ class Server:
         if self.__all_agencies_finished():
             logging.info("action: sorteo | result: success")
 
+    """
+    Checks if all agencies finished sending batches
+    """
+
     def __all_agencies_finished(self):
         # TODO: pass this to a constant (after my question is answered)
         if len(self._agencies) < 5:
@@ -188,7 +197,40 @@ class Server:
                 return False
         return True
 
-    # def __process_who_won(self, message):
+    def __format_winners(self, winners):
+        msg = ""
+        for winner in winners:
+            msg += winner
+        msg += "\n"
+        return msg
+
+    """
+    Iterate over all waiting agencies, send the winners for that agency and remove it from
+    the waiting list
+    """
+
+    def __send_results_to_waiting_agencies(self, agency_number, agency_socket):
+
+        winners = winners_for_agency(agency_number)
+        msg = "{}".format(self.__format_winners(winners)).encode("utf-8")
+
+        logging.debug(f"Enviando a la agencia: {agency_number} | msg: {msg}")
+
+        self.__send_all(agency_socket, msg)
+
+        agency_socket.close()
+
+    def __process_who_won(self, agency, client_sock):
+        _, agency_number = agency.split("=")
+
+        if self.__all_agencies_finished():
+            # all agencies finished -> sending results
+            self.__send_results_to_waiting_agencies(agency_number, client_sock)
+
+    """
+    Demultiplexes messages received and calls the functions that process them
+    Raises a RuntimeError in case the message is not recognized
+    """
 
     def __process_message(self, message, client_sock):
         message_type, body = message.split(",", 1)
@@ -198,8 +240,8 @@ class Server:
             self.__process_batch(body, client_sock)
         elif message_type == "FIN":
             self.__process_fin(body)
-        # elif message_type == "GANADOR":
-        #     self.__process_who_won(body)
+        elif message_type == "GANADORES":
+            self.__process_who_won(body, client_sock)
         else:
             raise RuntimeError(f"Message type not recognized: {message_type}")
 
@@ -212,7 +254,7 @@ class Server:
         """
 
         # Have to declare it here, otherwise the except block woudln't be able to access it
-        batch_size = None
+        # batch_size = None
 
         try:
             msg = (
@@ -237,12 +279,12 @@ class Server:
             # )
             # # Send success to the client
             # self.__send_all(client_sock, "{}\n".format("EXITO").encode("utf-8"))
-        except (ValueError, RuntimeError) as e:
-            logging.error(
-                f"action: apuesta_recibida | result: fail | error: {e} cantidad: {batch_size or 0}"
-            )
-            # Send error to the client
-            self.__send_all(client_sock, "{}\n".format("ERROR").encode("utf-8"))
+        # except (ValueError, RuntimeError) as e:
+        #     logging.error(
+        #         f"action: apuesta_recibida | result: fail | error: {e} cantidad: {batch_size or 0}"
+        #     )
+        #     # Send error to the client
+        #     self.__send_all(client_sock, "{}\n".format("ERROR").encode("utf-8"))
         except OSError as e:
             logging.error(f"action: receive_message | result: fail | error: {e}")
 
