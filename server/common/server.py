@@ -3,7 +3,7 @@ import logging
 import signal
 import time
 
-from common.utils import Bet, parse_csv_kv, store_bets
+from common.utils import Bet, store_bets
 
 
 class Server:
@@ -43,6 +43,22 @@ class Server:
             except OSError:
                 logging.debug(f"action: accept_new_connections | result: terminated")
                 return
+
+    """ 
+    Parses a message with the format: K1=V1,K2=V2,...,Kn=Vn and returns a dictionary with the
+    parsed key-values 
+    """
+
+    def __parse_csv_kv(self, msg):
+        data = dict()
+        # Split by comma, leaving a list of [Key=Value, ...] values
+        separated_csv = msg.split(",")
+
+        for kv in separated_csv:
+            # Split by "=", leaving a (key,value) pair
+            k, v = kv.split("=")
+            data[k] = v
+        return data
 
     def __handle_client_connection(self, client_sock):
         """
@@ -84,7 +100,7 @@ class Server:
                 f"action: receive_message | result: success | ip: {addr[0]} | msg: {msg}"
             )
 
-            parsed_bet_data = parse_csv_kv(msg)
+            parsed_bet_data = self.__parse_csv_kv(msg)
             # I guess it has to be a list for batching (ej6)
             store_bets(
                 [

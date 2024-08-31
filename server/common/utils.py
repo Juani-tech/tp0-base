@@ -79,21 +79,3 @@ def load_bets() -> list[Bet]:
         reader = csv.reader(file, quoting=csv.QUOTE_MINIMAL)
         for row in reader:
             yield Bet(row[0], row[1], row[2], row[3], row[4], row[5])
-
-
-""" 
-Parses a message with the format: K1=V1,K2=V2,...,Kn=Vn and returns a dictionary with the
-parsed key-values 
-"""
-
-
-def parse_csv_kv(msg):
-    data = dict()
-    # Split by comma, leaving a list of [Key=Value, ...] values
-    separated_csv = msg.split(",")
-
-    for kv in separated_csv:
-        # Split by "=", leaving a (key,value) pair
-        k, v = kv.split("=")
-        data[k] = v
-    return data

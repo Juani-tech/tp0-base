@@ -26,7 +26,7 @@ func NewGamblerFromENV() *Gambler {
 	v.BindEnv("nacimiento")
 	v.BindEnv("numero")
 
-	log.Infof("action: config_gambler | result: success | name: %s | surname: %s | document: %v | birthDate: %v | number: %s",
+	log.Debugf("action: config_gambler | result: success | name: %s | surname: %s | document: %v | birthDate: %v | number: %s",
 		v.GetString("nombre"),
 		v.GetString("apellido"),
 		v.GetString("documento"),
