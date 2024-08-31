@@ -2,7 +2,7 @@ import socket
 import logging
 import signal
 
-from common.utils import Bet, parse_batch_data, store_bets
+from common.utils import Bet, store_bets
 
 
 class Server:
@@ -183,7 +183,7 @@ class Server:
         # TODO: pass this to a constant (after my question is answered)
         if len(self._agencies) < 5:
             return False
-        for finished in self._finished_agencies.values():
+        for finished in self._agencies.values():
             if not finished:
                 return False
         return True
