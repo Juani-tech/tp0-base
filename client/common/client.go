@@ -90,7 +90,7 @@ func (c *Client) StartClientLoop() {
 			err := c.SendAll(message)
 
 			if err != nil {
-				log.Errorf("action: send_message | result: fail | client_id: %v | error: %v",
+				log.Debugf("action: send_message | result: fail | client_id: %v | error: %v",
 					c.config.ID,
 					err,
 				)
@@ -178,7 +178,7 @@ func (c *Client) SendBatchesOfBets(batchesOfBets []Batch, maxMessageSize int) er
 		err := c.createClientSocket()
 
 		if err != nil {
-			log.Criticalf("action: create_client_socket | result: fail | client_id: %v | error: %v",
+			log.Debugf("action: create_client_socket | result: fail | client_id: %v | error: %v",
 				c.config.ID,
 				err,
 			)
