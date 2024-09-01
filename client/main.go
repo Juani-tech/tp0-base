@@ -106,36 +106,19 @@ func main() {
 	PrintConfig(v)
 
 	clientConfig := common.ClientConfig{
-		ServerAddress: v.GetString("server.address"),
-		ID:            v.GetString("id"),
-		LoopAmount:    v.GetInt("loop.amount"),
-		LoopPeriod:    v.GetDuration("loop.period"),
+		ServerAddress:  v.GetString("server.address"),
+		ID:             v.GetString("id"),
+		LoopAmount:     v.GetInt("loop.amount"),
+		LoopPeriod:     v.GetDuration("loop.period"),
+		BatchSize:      v.GetInt("batch.maxAmount"),
+		MaxMessageSize: v.GetInt("message.maxSize"),
 	}
 
 	client := common.NewClient(clientConfig)
-
-	batchesOfBets, err := common.BatchOfBetsFromCsvFile("./data.csv", v.GetInt("batch.maxAmount"))
+	err = client.RunProtocol()
 	if err != nil {
 		log.Debugf("%s", err)
 		return
 	}
 
-	err = client.SendBatchesOfBets(batchesOfBets, v.GetInt("message.maxSize"))
-	if err != nil {
-		log.Debugf("%s", err)
-		return
-	}
-
-	err = client.NotifyEndOfBatches(v.GetInt("message.maxSize"))
-	if err != nil {
-		log.Debugf("%s", err)
-		return
-	}
-
-	err = client.AskForWinners(v.GetInt("message.maxSize"))
-
-	if err != nil {
-		log.Debugf("%s", err)
-		return
-	}
 }

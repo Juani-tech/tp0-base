@@ -19,7 +19,7 @@ class Server:
     # which causes the server to "tell" to the connected parts that it's closing them
     def __sigterm_handler(self, signum, frames):
         self._sigterm_received = True
-        self._server_socket.shutdown(socket.SHUT_RDWR)  # No further writes/read allowed
+        self._server_socket.shutdown(socket.SHUT_RDWR)
 
     def run(self):
         """

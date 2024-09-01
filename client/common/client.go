@@ -2,6 +2,7 @@ package common
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -19,10 +20,12 @@ var log = logging.MustGetLogger("log")
 
 // ClientConfig Configuration used by the client
 type ClientConfig struct {
-	ID            string
-	ServerAddress string
-	LoopAmount    int
-	LoopPeriod    time.Duration
+	ID             string
+	ServerAddress  string
+	LoopAmount     int
+	LoopPeriod     time.Duration
+	BatchSize      int
+	MaxMessageSize int
 }
 
 // Client Entity that encapsulates how
@@ -123,24 +126,57 @@ func (c *Client) StartClientLoop() {
 	log.Infof("action: loop_finished | result: success | client_id: %v", c.config.ID)
 }
 
+func (c *Client) RunProtocol() error {
+	batchesOfBets, err := BatchOfBetsFromCsvFile("./data.csv", c.config.BatchSize, c.stop)
+	if err != nil {
+		log.Debugf("%s", err)
+		return err
+	}
+
+	err = c.SendBatchesOfBets(batchesOfBets)
+	if err != nil {
+		log.Debugf("%s", err)
+		return err
+	}
+
+	err = c.NotifyEndOfBatches()
+	if err != nil {
+		log.Debugf("%s", err)
+		return err
+	}
+
+	err = c.AskForWinners()
+
+	if err != nil {
+		log.Debugf("%s", err)
+		return err
+	}
+	return nil
+}
+
 // Tries to send all the bytes in string, returns the error raised if there is one
 func (c *Client) SendAll(message string) error {
 	for bytesSent := 0; bytesSent < len(message); {
-
-		bytes, err := fmt.Fprint(
-			c.conn,
-			message[bytesSent:],
-		)
-
-		if err != nil {
-			log.Debugf("action: send_message | result: fail | client_id: %v | error: %v",
-				c.config.ID,
-				err,
+		select {
+		case <-c.stop:
+			log.Debugf("action: send_all | result: interrupted")
+			return errors.New("sigterm received")
+		default:
+			bytes, err := fmt.Fprint(
+				c.conn,
+				message[bytesSent:],
 			)
-			return err
-		}
 
-		bytesSent += bytes
+			if err != nil {
+				log.Debugf("action: send_message | result: fail | client_id: %v | error: %v",
+					c.config.ID,
+					err,
+				)
+				return err
+			}
+
+			bytesSent += bytes
+		}
 	}
 	return nil
 }
@@ -151,6 +187,8 @@ func (c *Client) SendBet(g *Bet) {
 	// 	- Example:
 	// NOMBRE=Juan,APELLIDO=Perez,DOCUMENTO=11111111,NACIMIENTO=2020-03-03,NUMERO=1234\n
 	err := c.createClientSocket()
+	defer c.conn.Close()
+
 	if err != nil {
 		log.Debugf("action: send_bet | result: fail | client_id: %v | error: %v",
 			c.config.ID,
@@ -175,46 +213,61 @@ func (c *Client) SendBet(g *Bet) {
 }
 
 // maxBatchSize represents the maximum amount of bytes sent per message
-func (c *Client) SendBatchesOfBets(batchesOfBets []Batch, maxMessageSize int) error {
+func (c *Client) SendBatchesOfBets(batchesOfBets []Batch) error {
 	var message string
 	for _, batch := range batchesOfBets {
-		err := c.createClientSocket()
+		select {
+		case <-c.stop:
+			log.Debugf("action: send_batches | result: interrupted")
+			return errors.New("sigterm received")
+		default:
+			err := c.createClientSocket()
+			defer c.conn.Close()
 
-		if err != nil {
-			log.Debugf("action: create_client_socket | result: fail | client_id: %v | error: %v",
+			if err != nil {
+				log.Debugf("action: create_client_socket | result: fail | client_id: %v | error: %v",
+					c.config.ID,
+					err,
+				)
+				return err
+			}
+
+			message, err = c.formatBatch(batch)
+
+			if err != nil {
+				log.Debugf("action: format_batch | result: fail | client_id: %v | error: %v",
+					c.config.ID,
+					err,
+				)
+				return err
+			}
+
+			err = c.sendMessageWithMaxSize(message)
+
+			if err != nil {
+				log.Debugf("action: send_batches_of_bets | result: fail | client_id: %v | error: %v",
+					c.config.ID,
+					err,
+				)
+				return err
+			}
+
+			msg, err := bufio.NewReader(c.conn).ReadString('\n')
+			c.conn.Close()
+
+			if err != nil {
+				log.Debugf("action: close_socket | result: fail | client_id: %v | error: %v",
+					c.config.ID,
+					err,
+				)
+				return err
+			}
+
+			log.Debugf("action: server_response | result: success | client_id: %v | response: %v",
 				c.config.ID,
-				err,
+				msg,
 			)
-			return err
 		}
-
-		message = c.formatBatch(batch)
-
-		err = c.sendMessageWithMaxSize(message, maxMessageSize)
-
-		if err != nil {
-			log.Debugf("action: send_batches_of_bets | result: fail | client_id: %v | error: %v",
-				c.config.ID,
-				err,
-			)
-			return err
-		}
-
-		msg, err := bufio.NewReader(c.conn).ReadString('\n')
-		c.conn.Close()
-
-		if err != nil {
-			log.Debugf("action: close_socket | result: fail | client_id: %v | error: %v",
-				c.config.ID,
-				err,
-			)
-			return err
-		}
-
-		log.Debugf("action: server_response | result: success | client_id: %v | response: %v",
-			c.config.ID,
-			msg,
-		)
 
 	}
 	return nil
@@ -222,7 +275,7 @@ func (c *Client) SendBatchesOfBets(batchesOfBets []Batch, maxMessageSize int) er
 
 func betHasDelimiters(record []string) bool {
 	for _, value := range record {
-		if strings.Contains(value, "\n") || strings.Contains(value, ":") {
+		if strings.Contains(value, "\n") || strings.Contains(value, ":") || strings.Contains(value, ",") {
 			log.Debugf("The value: %s contains an invalid character (\\n or :)", value)
 			return true
 		}
@@ -236,26 +289,32 @@ Observation:
   - Added a ":" at the end of each bet (except for the last one) in order to separate them
   - Added the size of the batch
 */
-func (c *Client) formatBatch(b Batch) string {
+func (c *Client) formatBatch(b Batch) (string, error) {
 	formattedMessage := fmt.Sprintf("BATCH,%d,", len(b))
 
 	for i, record := range b {
-		if betHasDelimiters(record) {
-			log.Debugf("Invalid record: %s", record)
-			continue
-		}
-		if i == len(b)-1 {
-			// Do not add ':' to our last record
-			formattedMessage +=
-				fmt.Sprintf("AGENCIA=%s,NOMBRE=%s,APELLIDO=%s,DOCUMENTO=%s,NACIMIENTO=%s,NUMERO=%s", c.config.ID, record[0], record[1], record[2], record[3], record[4])
-		} else {
-			formattedMessage +=
-				fmt.Sprintf("AGENCIA=%s,NOMBRE=%s,APELLIDO=%s,DOCUMENTO=%s,NACIMIENTO=%s,NUMERO=%s:", c.config.ID, record[0], record[1], record[2], record[3], record[4])
+		select {
+		case <-c.stop:
+			log.Debugf("action: send_message | result: interrupted")
+			return "", errors.New("sigterm received")
+		default:
+			if betHasDelimiters(record) {
+				log.Debugf("Invalid record: %s", record)
+				continue
+			}
+			if i == len(b)-1 {
+				// Do not add ':' to our last record
+				formattedMessage +=
+					fmt.Sprintf("AGENCIA=%s,NOMBRE=%s,APELLIDO=%s,DOCUMENTO=%s,NACIMIENTO=%s,NUMERO=%s", c.config.ID, record[0], record[1], record[2], record[3], record[4])
+			} else {
+				formattedMessage +=
+					fmt.Sprintf("AGENCIA=%s,NOMBRE=%s,APELLIDO=%s,DOCUMENTO=%s,NACIMIENTO=%s,NUMERO=%s:", c.config.ID, record[0], record[1], record[2], record[3], record[4])
+			}
 		}
 
 	}
 	formattedMessage += "\n"
-	return formattedMessage
+	return formattedMessage, nil
 }
 
 // There's no min func until go 1.21!! (using version 1.17) D:
@@ -267,32 +326,38 @@ func min(a, b int) int {
 }
 
 // Sends a given message in chunks of maximum bytes: maxMessageSize
-func (c *Client) sendMessageWithMaxSize(message string, maxMessageSize int) error {
+func (c *Client) sendMessageWithMaxSize(message string) error {
 	index := 0
 	var nextIndex int
 	for {
-		nextIndex = min(index+maxMessageSize, len(message))
-		err := c.SendAll(message[index:nextIndex])
+		select {
+		case <-c.stop:
+			log.Debugf("action: send_message | result: interrupted")
+			return errors.New("sigterm received")
+		default:
+			nextIndex = min(index+c.config.MaxMessageSize, len(message))
+			err := c.SendAll(message[index:nextIndex])
 
-		if err != nil {
-			log.Debugf("action: send_message_with_max_size | result: fail | client_id: %v | error: %v",
-				c.config.ID,
-				err,
-			)
-			return err
-		}
+			if err != nil {
+				log.Debugf("action: send_message_with_max_size | result: fail | client_id: %v | error: %v",
+					c.config.ID,
+					err,
+				)
+				return err
+			}
 
-		if nextIndex == len(message) {
-			break
+			if nextIndex == len(message) {
+				return nil
+			}
+			index = nextIndex
 		}
-		index = nextIndex
 	}
 
-	return nil
 }
 
-func (c *Client) NotifyEndOfBatches(maxMessageSize int) error {
+func (c *Client) NotifyEndOfBatches() error {
 	err := c.createClientSocket()
+	defer c.conn.Close()
 
 	if err != nil {
 		log.Debugf("action: create_client_socket | result: fail | client_id: %v | error: %v",
@@ -303,7 +368,7 @@ func (c *Client) NotifyEndOfBatches(maxMessageSize int) error {
 	}
 
 	message := fmt.Sprintf("FIN,AGENCIA=%s\n", c.config.ID)
-	err = c.sendMessageWithMaxSize(message, maxMessageSize)
+	err = c.sendMessageWithMaxSize(message)
 
 	c.conn.Close()
 
@@ -338,46 +403,53 @@ func (c *Client) parseWinners(message string) (uint32, error) {
 	return uint32(amountOfWinners), nil
 }
 
-func (c *Client) AskForWinners(maxMessageSize int) error {
+func (c *Client) AskForWinners() error {
 	for {
-		err := c.createClientSocket()
+		select {
+		case <-c.stop:
+			log.Debugf("action: ask_winners | result: interrupted")
+			return errors.New("sigterm received")
+		default:
+			err := c.createClientSocket()
+			defer c.conn.Close()
 
-		if err != nil {
-			log.Debugf("action: create_client_socket | result: fail | client_id: %v | error: %v",
-				c.config.ID,
-				err,
-			)
-			return err
+			if err != nil {
+				log.Debugf("action: create_client_socket | result: fail | client_id: %v | error: %v",
+					c.config.ID,
+					err,
+				)
+				return err
+			}
+
+			message := fmt.Sprintf("GANADORES,AGENCIA=%s\n", c.config.ID)
+
+			err = c.sendMessageWithMaxSize(message)
+			if err != nil {
+				log.Debugf("action: ask_winners | result: fail | error: %v", err)
+				return err
+			}
+
+			msg, err := bufio.NewReader(c.conn).ReadString('\n')
+
+			c.conn.Close()
+
+			if err == io.EOF {
+				time.Sleep(1 * time.Second)
+				continue
+			} else if err != nil {
+				log.Debugf("action: receive_winners | result: fail | error: %v", err)
+				return err
+			}
+
+			amountOfWinners, err := c.parseWinners(msg)
+
+			if err != nil {
+				log.Debugf("action: parse_winners | result: fail | error: %v", err)
+				return err
+			}
+
+			log.Infof("action: consulta_ganadores | result: success | cant_ganadores: %d", amountOfWinners)
 		}
-
-		message := fmt.Sprintf("GANADORES,AGENCIA=%s\n", c.config.ID)
-
-		err = c.sendMessageWithMaxSize(message, maxMessageSize)
-		if err != nil {
-			log.Debugf("action: ask_winners | result: fail | error: %v", err)
-			return err
-		}
-
-		msg, err := bufio.NewReader(c.conn).ReadString('\n')
-
-		c.conn.Close()
-
-		if err == io.EOF {
-			time.Sleep(2 * time.Second)
-			continue
-		} else if err != nil {
-			log.Debugf("action: receive_winners | result: fail | error: %v", err)
-			return err
-		}
-
-		amountOfWinners, err := c.parseWinners(msg)
-
-		if err != nil {
-			log.Debugf("action: parse_winners | result: fail | error: %v", err)
-			return err
-		}
-
-		log.Infof("action: consulta_ganadores | result: success | cant_ganadores: %d", amountOfWinners)
 
 		return nil
 	}

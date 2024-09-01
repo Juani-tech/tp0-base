@@ -2,6 +2,7 @@ package common
 
 import (
 	"encoding/csv"
+	"errors"
 	"io"
 	"os"
 
@@ -48,7 +49,7 @@ func NewBetFromENV() *Bet {
 }
 
 // Returns the contents of a csv file in batchs of `batchSize`
-func BatchOfBetsFromCsvFile(filePath string, batchSize int) ([]Batch, error) {
+func BatchOfBetsFromCsvFile(filePath string, batchSize int, c chan bool) ([]Batch, error) {
 	file, err := os.Open(filePath)
 
 	if err != nil {
@@ -64,26 +65,32 @@ func BatchOfBetsFromCsvFile(filePath string, batchSize int) ([]Batch, error) {
 	batchesOfBets := make([]Batch, 0)
 	actualBatch := make(Batch, 0)
 	for {
-		record, err := reader.Read()
-		if err == io.EOF {
-			if len(actualBatch) > 0 {
-				batchesOfBets = append(batchesOfBets, actualBatch)
+		select {
+		case <-c:
+			log.Debugf("action: read_csv | result: interrupted")
+			file.Close()
+			return nil, errors.New("sigterm received")
+		default:
+			record, err := reader.Read()
+			if err == io.EOF {
+				if len(actualBatch) > 0 {
+					batchesOfBets = append(batchesOfBets, actualBatch)
+				}
+				return batchesOfBets, nil
 			}
-			break
-		}
 
-		if err != nil {
-			log.Debugf("action: read_csv | result: fail | filepath: %s | err: %s", filePath, err)
-			return nil, err
-		}
+			if err != nil {
+				log.Debugf("action: read_csv | result: fail | filepath: %s | err: %s", filePath, err)
+				return nil, err
+			}
 
-		actualBatch = append(actualBatch, record)
+			actualBatch = append(actualBatch, record)
 
-		if len(actualBatch) == batchSize {
-			batchesOfBets = append(batchesOfBets, actualBatch)
-			actualBatch = make(Batch, 0)
+			if len(actualBatch) == batchSize {
+				batchesOfBets = append(batchesOfBets, actualBatch)
+				actualBatch = make(Batch, 0)
+			}
 		}
 	}
 
-	return batchesOfBets, nil
 }
