@@ -20,6 +20,7 @@ class Server:
     def __sigterm_handler(self, signum, frames):
         self._sigterm_received = True
         self._server_socket.shutdown(socket.SHUT_RDWR)
+        raise SystemExit
 
     def run(self):
         """
@@ -40,7 +41,8 @@ class Server:
             try:
                 client_sock = self.__accept_new_connection()
                 self.__handle_client_connection(client_sock)
-            except OSError:
+
+            except (OSError, SystemExit):
                 return
 
     def __recv_all(self, sock, buffer_size):
@@ -277,7 +279,6 @@ class Server:
             self.__process_message(msg, client_sock)
         except OSError as e:
             logging.error(f"action: receive_message | result: fail | error: {e}")
-
         finally:
             client_sock.close()
 
