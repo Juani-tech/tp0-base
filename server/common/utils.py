@@ -82,4 +82,6 @@ def load_bets() -> list[Bet]:
 
 
 def winners_for_agency(agency):
-    return [bet.document for bet in load_bets() if bet.agency == agency]
+    return [
+        bet.document for bet in load_bets() if bet.agency == agency and has_won(bet)
+    ]

@@ -159,6 +159,8 @@ class Server:
         return bets
 
     def __process_batch(self, batch_message, client_sock):
+        # Have to declare it here, otherwise the except block woudln't be able to access it
+        batch_size = None
         try:
             batch_size, data = batch_message.split(",", 1)
             # If agency sent FIN message do not process bets
@@ -197,10 +199,17 @@ class Server:
                 return False
         return True
 
+    """
+    Formats winners in csv format, with the first record being the amount of them
+    E.g: '2,12334,14567\n'
+    """
+
     def __format_winners(self, winners):
-        msg = ""
+        msg = f"{len(winners)},"
         for winner in winners:
             msg += winner
+            if winner != winners[-1]:
+                msg += ","
         msg += "\n"
         return msg
 
@@ -209,10 +218,9 @@ class Server:
     the waiting list
     """
 
-    def __send_results_to_waiting_agencies(self, agency_number, agency_socket):
+    def __send_results_to_agency(self, agency_number, agency_socket):
 
         winners = winners_for_agency(agency_number)
-        logging.debug(f"WINNERS: {winners}")
         msg = "{}".format(self.__format_winners(winners)).encode("utf-8")
 
         logging.debug(f"Enviando a la agencia: {agency_number} | msg: {msg}")
@@ -226,7 +234,7 @@ class Server:
 
         if self.__all_agencies_finished():
             # all agencies finished -> sending results
-            self.__send_results_to_waiting_agencies(agency_number, client_sock)
+            self.__send_results_to_agency(int(agency_number), client_sock)
 
     """
     Demultiplexes messages received and calls the functions that process them
@@ -254,9 +262,6 @@ class Server:
         client socket will also be closed.
         """
 
-        # Have to declare it here, otherwise the except block woudln't be able to access it
-        # batch_size = None
-
         try:
             msg = (
                 self.__recv_all(client_sock, 1024)
@@ -270,22 +275,6 @@ class Server:
                 f"action: receive_message | result: success | ip: {addr[0]} | msg: {msg}"
             )
             self.__process_message(msg, client_sock)
-            # batch_size, data = msg.split(",", 1)
-
-            # parsed_batch_data = parse_batch_data(data, int(batch_size))
-            # store_bets(parsed_batch_data)
-
-            # logging.info(
-            #     f"action: apuesta_recibida | result: success | cantidad: {batch_size}"
-            # )
-            # # Send success to the client
-            # self.__send_all(client_sock, "{}\n".format("EXITO").encode("utf-8"))
-        # except (ValueError, RuntimeError) as e:
-        #     logging.error(
-        #         f"action: apuesta_recibida | result: fail | error: {e} cantidad: {batch_size or 0}"
-        #     )
-        #     # Send error to the client
-        #     self.__send_all(client_sock, "{}\n".format("ERROR").encode("utf-8"))
         except OSError as e:
             logging.error(f"action: receive_message | result: fail | error: {e}")
 

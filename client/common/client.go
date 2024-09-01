@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -314,8 +315,27 @@ func (c *Client) NotifyEndOfBatches(maxMessageSize int) error {
 	return nil
 }
 
-func (c *Client) parseWinners(message string) error {
-	return nil
+func (c *Client) parseWinners(message string) (uint32, error) {
+	values := strings.Split(message, ",")
+	amountOfWinners, err := strconv.Atoi(values[0])
+
+	if err != nil {
+		log.Debugf("Error parsing amount of winners: %v", err)
+		return 0, err
+	}
+
+	if amountOfWinners == 0 {
+		return 0, nil
+	}
+
+	winnersDocuments := values[1:]
+
+	if len(winnersDocuments) != amountOfWinners {
+		err := fmt.Errorf("expected amount of winners: %d, got: %d", amountOfWinners, len(winnersDocuments))
+		return 0, err
+	}
+
+	return uint32(amountOfWinners), nil
 }
 
 func (c *Client) AskForWinners(maxMessageSize int) error {
@@ -350,7 +370,15 @@ func (c *Client) AskForWinners(maxMessageSize int) error {
 			return err
 		}
 
-		log.Debugf("Received winners: %s", msg)
+		amountOfWinners, err := c.parseWinners(msg)
+
+		if err != nil {
+			log.Debugf("action: parse_winners | result: fail | error: %v", err)
+			return err
+		}
+
+		log.Infof("action: consulta_ganadores | result: success | cant_ganadores: %d", amountOfWinners)
+
 		return nil
 	}
 
