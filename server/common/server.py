@@ -12,13 +12,11 @@ class Server:
         self._server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._server_socket.bind(("", port))
         self._server_socket.listen(listen_backlog)
-        self._sigterm_received = False
         self._agencies = dict()
 
     # Sets sigtemr_received flag and executes shutdown on the socket
     # which causes the server to "tell" to the connected parts that it's closing them
     def __sigterm_handler(self, signum, frames):
-        self._sigterm_received = True
         self._server_socket.shutdown(socket.SHUT_RDWR)
         raise SystemExit
 
@@ -37,7 +35,7 @@ class Server:
         # Add the signal handler for SIGTERM
         signal.signal(signal.SIGTERM, self.__sigterm_handler)
 
-        while not self._sigterm_received:
+        while True:
             try:
                 client_sock = self.__accept_new_connection()
                 self.__handle_client_connection(client_sock)
