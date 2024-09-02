@@ -41,6 +41,7 @@ class Server:
                 self.__handle_client_connection(client_sock)
 
             except (OSError, SystemExit):
+                logging.debug("action: accept_new_connections | result: finished ")
                 return
 
     def __recv_all(self, sock, buffer_size):
