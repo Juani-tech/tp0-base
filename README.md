@@ -183,5 +183,14 @@ Finalmente, se pide a los alumnos leer atentamente y **tener en cuenta** los cri
 ## Ejercicio 3 
 
 - Ejecutar sh validar-echo-server.sh
-- Esto buildea y agrega un servicio al docker compose original
-- Los comandos para parar la ejecucion/mostrar logs se mantienen iguales que los provistos por la catedra 
+- Esto buildea y levanta un servicio (declarado en docker-compose-validator.yaml)
+- Para parar la ejecucion: 
+
+```bash
+    make docker-compose-validator-down
+```
+- Para mostrar los logs: 
+
+```bash
+    make docker-compose-validator-logs
+```

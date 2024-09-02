@@ -1,3 +1,3 @@
 #!/bin/bash
 
-make docker-compose-validator-up  > /dev/null 2>&1
+make docker-compose-validator-up && make docker-compose-validator-logs
