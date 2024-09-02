@@ -29,7 +29,7 @@ if __name__ == "__main__":
                 "container_name": "server",
                 "image": "server:latest",
                 "entrypoint": "python3 /main.py",
-                "environment": ["PYTHONUNBUFFERED=1", "LOGGING_LEVEL=DEBUG"],
+                "environment": ["PYTHONUNBUFFERED=1"],
                 "networks": ["testing_net"],
                 "volumes": ["./server/config.ini:/config.ini"]
             },
@@ -47,7 +47,7 @@ if __name__ == "__main__":
             "container_name": client_name,
             "image": "client:latest",
             "entrypoint": "/client",
-            "environment": [f"CLI_ID={i}", "CLI_LOG_LEVEL=DEBUG"],
+            "environment": [f"CLI_ID={i}"],
             "networks": ["testing_net"],
             "depends_on": ["server"],
             "volumes": ["./client/config.yaml:/config.yaml"],
