@@ -2,6 +2,7 @@ package common
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -124,21 +125,26 @@ func (c *Client) StartClientLoop() {
 // Tries to send all the bytes in string, returns the error raised if there is one
 func (c *Client) SendAll(message string) error {
 	for bytesSent := 0; bytesSent < len(message); {
-
-		bytes, err := fmt.Fprint(
-			c.conn,
-			message[bytesSent:],
-		)
-
-		if err != nil {
-			log.Debugf("action: send_message | result: fail | client_id: %v | error: %v",
-				c.config.ID,
-				err,
+		select {
+		case <-c.stop:
+			log.Debugf("action: send_all | result: interrupted | client_id: %v", c.config.ID)
+			return errors.New("sigterm received")
+		default:
+			bytes, err := fmt.Fprint(
+				c.conn,
+				message[bytesSent:],
 			)
-			return err
-		}
 
-		bytesSent += bytes
+			if err != nil {
+				log.Debugf("action: send_message | result: fail | client_id: %v | error: %v",
+					c.config.ID,
+					err,
+				)
+				return err
+			}
+
+			bytesSent += bytes
+		}
 	}
 	return nil
 }
@@ -177,6 +183,7 @@ func (c *Client) SendBatchesOfBets(batchesOfBets []Batch, maxMessageSize int) er
 	var message string
 	for _, batch := range batchesOfBets {
 		err := c.createClientSocket()
+		defer c.conn.Close()
 
 		if err != nil {
 			log.Debugf("action: create_client_socket | result: fail | client_id: %v | error: %v",
@@ -186,7 +193,15 @@ func (c *Client) SendBatchesOfBets(batchesOfBets []Batch, maxMessageSize int) er
 			return err
 		}
 
-		message = c.formatBatch(batch)
+		message, err = c.formatBatch(batch)
+
+		if err != nil {
+			log.Debugf("action: format_batch | result: fail | client_id: %v | error: %v",
+				c.config.ID,
+				err,
+			)
+			return err
+		}
 
 		err = c.sendMessageWithMaxSize(message, maxMessageSize)
 
@@ -220,7 +235,7 @@ func (c *Client) SendBatchesOfBets(batchesOfBets []Batch, maxMessageSize int) er
 
 func betHasDelimiters(record []string) bool {
 	for _, value := range record {
-		if strings.Contains(value, "\n") || strings.Contains(value, ":") {
+		if strings.Contains(value, "\n") || strings.Contains(value, ":") || strings.Contains(value, ",") {
 			log.Debugf("The value: %s contains an invalid character (\\n or :)", value)
 			return true
 		}
@@ -234,26 +249,33 @@ Observation:
   - Added a ":" at the end of each bet (except for the last one) in order to separate them
   - Added the size of the batch
 */
-func (c *Client) formatBatch(b Batch) string {
+func (c *Client) formatBatch(b Batch) (string, error) {
 	formattedMessage := fmt.Sprintf("%d,", len(b))
 
 	for i, record := range b {
-		if betHasDelimiters(record) {
-			log.Debugf("Invalid record: %s", record)
-			continue
-		}
-		if i == len(b)-1 {
-			// Do not add ':' to our last record
-			formattedMessage +=
-				fmt.Sprintf("AGENCIA=%s,NOMBRE=%s,APELLIDO=%s,DOCUMENTO=%s,NACIMIENTO=%s,NUMERO=%s", c.config.ID, record[0], record[1], record[2], record[3], record[4])
-		} else {
-			formattedMessage +=
-				fmt.Sprintf("AGENCIA=%s,NOMBRE=%s,APELLIDO=%s,DOCUMENTO=%s,NACIMIENTO=%s,NUMERO=%s:", c.config.ID, record[0], record[1], record[2], record[3], record[4])
+		select {
+		case <-c.stop:
+			log.Debugf("action: send_all | result: interrupted | client_id: %v", c.config.ID)
+			return "", errors.New("sigterm received")
+
+		default:
+			if betHasDelimiters(record) {
+				log.Debugf("Invalid record: %s", record)
+				continue
+			}
+			if i == len(b)-1 {
+				// Do not add ':' to our last record
+				formattedMessage +=
+					fmt.Sprintf("AGENCIA=%s,NOMBRE=%s,APELLIDO=%s,DOCUMENTO=%s,NACIMIENTO=%s,NUMERO=%s", c.config.ID, record[0], record[1], record[2], record[3], record[4])
+			} else {
+				formattedMessage +=
+					fmt.Sprintf("AGENCIA=%s,NOMBRE=%s,APELLIDO=%s,DOCUMENTO=%s,NACIMIENTO=%s,NUMERO=%s:", c.config.ID, record[0], record[1], record[2], record[3], record[4])
+			}
 		}
 
 	}
 	formattedMessage += "\n"
-	return formattedMessage
+	return formattedMessage, nil
 }
 
 // There's no min func until go 1.21!! (using version 1.17) D:
