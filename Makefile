@@ -37,3 +37,15 @@ docker-compose-down:
 docker-compose-logs:
 	docker compose -f docker-compose-dev.yaml logs -f
 .PHONY: docker-compose-logs
+
+
+# Validator
+
+docke-validator-image: 
+	docker build -t "validator:latest" .
+.PHONY: docker-validator-image
+
+
+docker-compose-validator-up: docker-image docker-validator-image
+	docker compose -f docker-compose-dev.yaml up -d --build
+.PHONY: docker-compose-validator-up

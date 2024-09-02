@@ -16,13 +16,8 @@ services:
       - testing_net
     volumes:
       - ./server/config.ini:/config.ini
-
   validator:
     container_name: validator
-    image: ubuntu:latest
+    image: validator:latest
     networks:
       - testing_net
-    volumes:
-      - ./validar-echo-server.sh:/validar-echo-server.sh
-    command: sh /validar-echo-server.sh
-    entrypoint: /bin/bash -c "apt-get update && apt-get install -y netcat-openbsd && sh /validar-echo-server.sh"

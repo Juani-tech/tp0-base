@@ -178,3 +178,10 @@ Cada ejercicio deberá resolverse en una rama independiente con nombres siguiend
 Puden obtener un listado del último commit de cada rama ejecutando `git ls-remote`.
 
 Finalmente, se pide a los alumnos leer atentamente y **tener en cuenta** los criterios de corrección provistos [en el campus](https://campusgrado.fi.uba.ar/mod/page/view.php?id=73393).
+
+
+## Ejercicio 3 
+
+- Ejecutar sh validar-echo-server.sh
+- Esto buildea y agrega un servicio al docker compose original
+- Los comandos para parar la ejecucion/mostrar logs se mantienen iguales que los provistos por la catedra 

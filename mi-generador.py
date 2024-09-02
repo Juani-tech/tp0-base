@@ -33,6 +33,11 @@ if __name__ == "__main__":
                 "networks": ["testing_net"],
                 "volumes": ["./server/config.ini:/config.ini"]
             },
+            "validator": {
+                "container_name": "validator",
+                "image": "validator:latest",
+                "networks": ["testing_net"],
+            }
         },
         "networks": {
             "testing_net": {
