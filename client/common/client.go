@@ -57,7 +57,6 @@ func (c *Client) StartClientLoop() {
 	// Messages if the message amount threshold has not been surpassed
 
 	for msgID := 1; msgID <= c.config.LoopAmount; msgID++ {
-
 		c.createClientSocket()
 
 		message := fmt.Sprintf("[CLIENT %v] Message N°%v\n", c.config.ID, msgID)
@@ -86,7 +85,6 @@ func (c *Client) StartClientLoop() {
 			c.config.ID,
 			msg,
 		)
-
 		c.conn.Close()
 		// Wait a time between sending one message and the next one
 		time.Sleep(c.config.LoopPeriod)
