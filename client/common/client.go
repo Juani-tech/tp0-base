@@ -128,7 +128,7 @@ func (c *Client) SendAll(message string) error {
 
 		select {
 		case <-c.stop:
-			log.Debugf("action: loop_terminated | result: interrupted | client_id: %v", c.config.ID)
+			log.Debugf("action: send_all | result: interrupted | client_id: %v", c.config.ID)
 			c.conn.Close()
 			return errors.New("sigterm received")
 		default:
