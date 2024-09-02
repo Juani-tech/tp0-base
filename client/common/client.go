@@ -2,6 +2,7 @@ package common
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -26,14 +27,30 @@ type ClientConfig struct {
 type Client struct {
 	config ClientConfig
 	conn   net.Conn
+	stop   chan bool
 }
 
 // NewClient Initializes a new client receiving the configuration
 // as a parameter
 func NewClient(config ClientConfig) *Client {
+
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGTERM)
+	stop := make(chan bool, 1)
+
 	client := &Client{
 		config: config,
+		stop:   stop,
 	}
+	// goroutine to handle the signal and trigger shutdown
+	// it has to be goroutine because the channels otherwise would block the program
+	// until SIGTERM is received
+	go func() {
+		sig := <-sigs
+		log.Debugf("action: signal_received | result: success | signal: %v | client_id: %v", sig, client.config.ID)
+		stop <- true
+	}()
+
 	return client
 }
 
@@ -55,18 +72,6 @@ func (c *Client) createClientSocket() error {
 
 // StartClientLoop Send messages to the client until some time threshold is met
 func (c *Client) StartClientLoop() {
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGTERM)
-	stop := make(chan bool, 1)
-
-	// goroutine to handle the signal and trigger shutdown
-	// it has to be goroutine because the channels otherwise would block the program
-	// until SIGTERM is received
-	go func() {
-		sig := <-sigs
-		log.Debugf("action: signal_received | result: success | signal: %v | client_id: %v", sig, c.config.ID)
-		stop <- true
-	}()
 
 	// There is an autoincremental msgID to identify every message sent
 	// Messages if the message amount threshold has not been surpassed
@@ -75,7 +80,7 @@ func (c *Client) StartClientLoop() {
 		// As tour of go says:
 		// The select statement lets a goroutine wait on multiple communication operations.
 		select {
-		case <-stop:
+		case <-c.stop:
 			log.Debugf("action: loop_terminated | result: interrupted | client_id: %v", c.config.ID)
 			c.conn.Close()
 			return
@@ -120,20 +125,28 @@ func (c *Client) StartClientLoop() {
 // Tries to send all the bytes in string, returns the error raised if there is one
 func (c *Client) SendAll(message string) error {
 	for bytes_sent := 0; bytes_sent < len(message); {
-		bytes, err := fmt.Fprint(
-			c.conn,
-			message,
-		)
 
-		if err != nil {
-			log.Debugf("action: send_message | result: fail | client_id: %v | error: %v",
-				c.config.ID,
-				err,
+		select {
+		case <-c.stop:
+			log.Debugf("action: loop_terminated | result: interrupted | client_id: %v", c.config.ID)
+			c.conn.Close()
+			return errors.New("sigterm received")
+		default:
+			bytes, err := fmt.Fprint(
+				c.conn,
+				message,
 			)
-			return err
-		}
 
-		bytes_sent += bytes
+			if err != nil {
+				log.Debugf("action: send_message | result: fail | client_id: %v | error: %v",
+					c.config.ID,
+					err,
+				)
+				return err
+			}
+
+			bytes_sent += bytes
+		}
 	}
 	return nil
 }
