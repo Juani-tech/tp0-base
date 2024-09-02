@@ -15,11 +15,11 @@ if __name__ == "__main__":
 
     try:
         number_of_clients = int(sys.argv[2])
-        if number_of_clients <= 0:
+        if number_of_clients < 0:
             raise ValueError
 
     except ValueError:
-        print("Error: The second argument must be a positive integer.")
+        print("Error: The second argument must be a greater or equal than 0 (zero).")
         sys.exit(1)
 
     data = {
