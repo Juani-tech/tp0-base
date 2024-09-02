@@ -19,5 +19,7 @@ services:
   validator:
     container_name: validator
     image: validator:latest
+    depends_on:
+      - server
     networks:
       - testing_net
