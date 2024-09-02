@@ -11,11 +11,10 @@ class Server:
         self._server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._server_socket.bind(("", port))
         self._server_socket.listen(listen_backlog)
-        self._sigterm_received = False
 
     def _sigterm_handler(self, signum, frames):
-        self._sigterm_received = True
         self._server_socket.shutdown(socket.SHUT_RDWR)  # No further writes/read allowed
+        raise SystemExit
 
     def run(self):
         """
@@ -30,14 +29,13 @@ class Server:
         # the server
         signal.signal(signal.SIGTERM, self._sigterm_handler)
 
-        while not self._sigterm_received:
+        while True:
             try:
                 client_sock = self.__accept_new_connection()
                 self.__handle_client_connection(client_sock)
-            except OSError as e:
-                logging.error(
-                    "action: accept_new_connections | result: fail | error: {e}"
-                )
+            except (OSError, SystemExit) as e:
+                logging.debug("action: accept_new_connections | result: finished ")
+                return
 
     def __handle_client_connection(self, client_sock):
         """
