@@ -34,7 +34,6 @@ class Server:
                 client_sock = self.__accept_new_connection()
                 self.__handle_client_connection(client_sock)
             except (OSError, SystemExit) as e:
-                logging.debug("action: accept_new_connections | result: finished ")
                 return
 
     def __handle_client_connection(self, client_sock):
