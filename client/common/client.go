@@ -216,59 +216,52 @@ func (c *Client) SendBet(g *Bet) {
 func (c *Client) SendBatchesOfBets(batchesOfBets []Batch) error {
 	var message string
 	for _, batch := range batchesOfBets {
-		select {
-		case <-c.stop:
-			log.Debugf("action: send_batches | result: interrupted")
-			return errors.New("sigterm received")
-		default:
-			err := c.createClientSocket()
-			defer c.conn.Close()
+		err := c.createClientSocket()
+		defer c.conn.Close()
 
-			if err != nil {
-				log.Debugf("action: create_client_socket | result: fail | client_id: %v | error: %v",
-					c.config.ID,
-					err,
-				)
-				return err
-			}
-
-			message, err = c.formatBatch(batch)
-
-			if err != nil {
-				log.Debugf("action: format_batch | result: fail | client_id: %v | error: %v",
-					c.config.ID,
-					err,
-				)
-				return err
-			}
-
-			err = c.sendMessageWithMaxSize(message)
-
-			if err != nil {
-				log.Debugf("action: send_batches_of_bets | result: fail | client_id: %v | error: %v",
-					c.config.ID,
-					err,
-				)
-				return err
-			}
-
-			msg, err := bufio.NewReader(c.conn).ReadString('\n')
-			c.conn.Close()
-
-			if err != nil {
-				log.Debugf("action: close_socket | result: fail | client_id: %v | error: %v",
-					c.config.ID,
-					err,
-				)
-				return err
-			}
-
-			log.Debugf("action: server_response | result: success | client_id: %v | response: %v",
+		if err != nil {
+			log.Debugf("action: create_client_socket | result: fail | client_id: %v | error: %v",
 				c.config.ID,
-				msg,
+				err,
 			)
+			return err
 		}
 
+		message, err = c.formatBatch(batch)
+
+		if err != nil {
+			log.Debugf("action: format_batch | result: fail | client_id: %v | error: %v",
+				c.config.ID,
+				err,
+			)
+			return err
+		}
+
+		err = c.sendMessageWithMaxSize(message)
+
+		if err != nil {
+			log.Debugf("action: send_batches_of_bets | result: fail | client_id: %v | error: %v",
+				c.config.ID,
+				err,
+			)
+			return err
+		}
+
+		msg, err := bufio.NewReader(c.conn).ReadString('\n')
+		c.conn.Close()
+
+		if err != nil {
+			log.Debugf("action: close_socket | result: fail | client_id: %v | error: %v",
+				c.config.ID,
+				err,
+			)
+			return err
+		}
+
+		log.Debugf("action: server_response | result: success | client_id: %v | response: %v",
+			c.config.ID,
+			msg,
+		)
 	}
 	return nil
 }
@@ -330,27 +323,21 @@ func (c *Client) sendMessageWithMaxSize(message string) error {
 	index := 0
 	var nextIndex int
 	for {
-		select {
-		case <-c.stop:
-			log.Debugf("action: send_message | result: interrupted")
-			return errors.New("sigterm received")
-		default:
-			nextIndex = min(index+c.config.MaxMessageSize, len(message))
-			err := c.SendAll(message[index:nextIndex])
+		nextIndex = min(index+c.config.MaxMessageSize, len(message))
+		err := c.SendAll(message[index:nextIndex])
 
-			if err != nil {
-				log.Debugf("action: send_message_with_max_size | result: fail | client_id: %v | error: %v",
-					c.config.ID,
-					err,
-				)
-				return err
-			}
-
-			if nextIndex == len(message) {
-				return nil
-			}
-			index = nextIndex
+		if err != nil {
+			log.Debugf("action: send_message_with_max_size | result: fail | client_id: %v | error: %v",
+				c.config.ID,
+				err,
+			)
+			return err
 		}
+
+		if nextIndex == len(message) {
+			return nil
+		}
+		index = nextIndex
 	}
 
 }
