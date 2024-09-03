@@ -94,10 +94,10 @@ func (c *Client) StartClientLoop() {
 
 // Tries to send all the bytes in string, returns the error raised if there is one
 func (c *Client) SendAll(message string) error {
-	for bytes_sent := 0; bytes_sent < len(message); {
+	for bytesSent := 0; bytesSent < len(message); {
 		bytes, err := fmt.Fprint(
 			c.conn,
-			message,
+			message[bytesSent:],
 		)
 
 		if err != nil {
@@ -108,7 +108,7 @@ func (c *Client) SendAll(message string) error {
 			return err
 		}
 
-		bytes_sent += bytes
+		bytesSent += bytes
 	}
 	return nil
 }
