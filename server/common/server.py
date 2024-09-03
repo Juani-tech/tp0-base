@@ -1,7 +1,7 @@
 import socket
 import logging
 import signal
-
+import threading
 from common.utils import Bet, store_bets, winners_for_agency
 
 
@@ -14,11 +14,17 @@ class Server:
         self._server_socket.listen(listen_backlog)
         self._agencies = dict()
         self._total_agencies = total_agencies
-
+        self._threads = set()
+        self._threads_lock = threading.Lock()
+        self._got_sigterm = threading.Event()
+        self._store_bets_lock = threading.Lock()
+        self._load_bets_lock = threading.Lock()
+    
     # Sets sigtemr_received flag and executes shutdown on the socket
     # which causes the server to "tell" to the connected parts that it's closing them
     def __sigterm_handler(self, signum, frames):
         self._server_socket.shutdown(socket.SHUT_RDWR)
+        self._got_sigterm.set()
         raise SystemExit
 
     def run(self):
@@ -39,16 +45,24 @@ class Server:
         while True:
             try:
                 client_sock = self.__accept_new_connection()
-                self.__handle_client_connection(client_sock)
+                thread = threading.Thread(target=self.__handle_client_connection, args=(client_sock,))
+                self._threads.add(thread)
+                thread.start()
 
             except (OSError, SystemExit):
                 logging.debug("action: accept_new_connections | result: finished ")
+                with self._threads_lock: 
+                    for thread in self._threads: 
+                        thread.join()
                 return
 
     def __recv_all(self, sock, buffer_size):
         """Receive all data from the socket, handling short-reads."""
         data = b""
         while True:
+            if (self._got_sigterm.is_set()):
+                raise SystemExit
+            
             part = sock.recv(buffer_size)
             if len(part) == 0:
                 # The other side closed the connection
@@ -66,6 +80,9 @@ class Server:
         """Send all data through the socket, handling short-writes."""
         total_sent = 0
         while total_sent < len(data):
+            if (self._got_sigterm.is_set()):
+                raise SystemExit
+            
             sent = sock.send(data[total_sent:])
             if sent == 0:
                 raise OSError
@@ -168,7 +185,9 @@ class Server:
             # If agency sent FIN message do not process bets
             if not self.__agency_sent_fin(data):
                 parsed_batch_data = self.__parse_batch_data(data, int(batch_size))
-                store_bets(parsed_batch_data)
+               
+                with self._store_bets_lock:
+                    store_bets(parsed_batch_data)
 
                 logging.info(
                     f"action: apuesta_recibida | result: success | cantidad: {batch_size}"
@@ -221,12 +240,12 @@ class Server:
     """
 
     def __send_results_to_agency(self, agency_number, agency_socket):
-
-        winners = winners_for_agency(agency_number)
+        with self._load_bets_lock: 
+            winners = winners_for_agency(agency_number)
         msg = "{}".format(self.__format_winners(winners)).encode("utf-8")
 
         logging.debug(f"Enviando a la agencia: {agency_number} | msg: {msg}")
-
+      
         self.__send_all(agency_socket, msg)
 
         agency_socket.close()
@@ -280,6 +299,8 @@ class Server:
         except OSError as e:
             logging.error(f"action: receive_message | result: fail | error: {e}")
         finally:
+            with self._threads_lock: 
+                self._threads.remove(threading.current_thread())
             client_sock.close()
 
     def __accept_new_connection(self):
