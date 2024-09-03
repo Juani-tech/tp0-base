@@ -17,11 +17,11 @@ if __name__ == "__main__":
     try:
         # Check validity of number of clients
         number_of_clients = int(sys.argv[2])
-        if number_of_clients <= 0:
+        if number_of_clients < 0:
             raise ValueError
 
     except ValueError:
-        print("Error: The second argument must be a positive integer.")
+        print("Error: The second argument must be a greater or equal than 0 (zero).")
         sys.exit(1)
 
     # Skeleton (starting point)
@@ -32,8 +32,9 @@ if __name__ == "__main__":
                 "container_name": "server",
                 "image": "server:latest",
                 "entrypoint": "python3 /main.py",
-                "environment": ["PYTHONUNBUFFERED=1", "LOGGING_LEVEL=DEBUG"],
+                "environment": ["PYTHONUNBUFFERED=1"],
                 "networks": ["testing_net"],
+                "volumes": ["./server/config.ini:/config.ini"]
             },
         },
         "networks": {
@@ -60,7 +61,6 @@ if __name__ == "__main__":
             "entrypoint": "/client",
             "environment": {
                 "CLI_ID": i,
-                "CLI_LOG_LEVEL": "DEBUG",
                 "CLI_NOMBRE": random.choice(names),
                 "CLI_APELLIDO": random.choice(surnames),
                 # random.randint(0,28):02d -> adds left zero padding if necessary

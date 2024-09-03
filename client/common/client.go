@@ -41,7 +41,6 @@ func NewClient(config ClientConfig) *Client {
 		config: config,
 		stop:   stop,
 	}
-
 	// goroutine to handle the signal and trigger shutdown
 	// it has to be goroutine because the channels otherwise would block the program
 	// until SIGTERM is received

@@ -1,0 +1,9 @@
+services:
+  validator:
+    container_name: validator
+    image: validator:latest
+    networks:
+      - tp0_testing_net
+networks:
+  tp0_testing_net:
+    external: true
