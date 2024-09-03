@@ -3,13 +3,13 @@ networks:
   testing_net:
     ipam:
       config:
-      - subnet: 172.25.125.0/24
+        - subnet: 172.25.125.0/24
       driver: default
 services:
   client1:
     container_name: client1
     depends_on:
-    - server
+      - server
     entrypoint: /client
     environment:
       CLI_APELLIDO: Martinez
@@ -21,14 +21,14 @@ services:
       CLI_NUMERO: '7847'
     image: client:latest
     networks:
-    - testing_net
+      - testing_net
     volumes:
-    - ./client/config.yaml:/config.yaml
-    - ./.data/agency-1.csv:/data.csv
+      - ./client/config.yaml:/config.yaml
+      - ./.data/agency-1.csv:/data.csv
   client2:
     container_name: client2
     depends_on:
-    - server
+      - server
     entrypoint: /client
     environment:
       CLI_APELLIDO: Perez
@@ -40,14 +40,14 @@ services:
       CLI_NUMERO: '5197'
     image: client:latest
     networks:
-    - testing_net
+      - testing_net
     volumes:
-    - ./client/config.yaml:/config.yaml
-    - ./.data/agency-2.csv:/data.csv
+      - ./client/config.yaml:/config.yaml
+      - ./.data/agency-2.csv:/data.csv
   client3:
     container_name: client3
     depends_on:
-    - server
+      - server
     entrypoint: /client
     environment:
       CLI_APELLIDO: Perez
@@ -59,14 +59,14 @@ services:
       CLI_NUMERO: '3469'
     image: client:latest
     networks:
-    - testing_net
+      - testing_net
     volumes:
-    - ./client/config.yaml:/config.yaml
-    - ./.data/agency-3.csv:/data.csv
+      - ./client/config.yaml:/config.yaml
+      - ./.data/agency-3.csv:/data.csv
   client4:
     container_name: client4
     depends_on:
-    - server
+      - server
     entrypoint: /client
     environment:
       CLI_APELLIDO: Chiazza
@@ -78,14 +78,14 @@ services:
       CLI_NUMERO: '3029'
     image: client:latest
     networks:
-    - testing_net
+      - testing_net
     volumes:
-    - ./client/config.yaml:/config.yaml
-    - ./.data/agency-4.csv:/data.csv
+      - ./client/config.yaml:/config.yaml
+      - ./.data/agency-4.csv:/data.csv
   client5:
     container_name: client5
     depends_on:
-    - server
+      - server
     entrypoint: /client
     environment:
       CLI_APELLIDO: Rodriguez
@@ -97,16 +97,17 @@ services:
       CLI_NUMERO: '7338'
     image: client:latest
     networks:
-    - testing_net
+      - testing_net
     volumes:
-    - ./client/config.yaml:/config.yaml
-    - ./.data/agency-5.csv:/data.csv
+      - ./client/config.yaml:/config.yaml
+      - ./.data/agency-5.csv:/data.csv
   server:
     container_name: server
     entrypoint: python3 /main.py
     environment:
-    - PYTHONUNBUFFERED=1
-    - LOGGING_LEVEL=DEBUG
+      - PYTHONUNBUFFERED=1
     image: server:latest
     networks:
-    - testing_net
+      - testing_net
+    volumes:
+      - ./server/config.ini:/config.ini
