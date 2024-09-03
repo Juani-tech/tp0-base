@@ -12,19 +12,26 @@ class Server:
         self._server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._server_socket.bind(("", port))
         self._server_socket.listen(listen_backlog)
-        self._agencies = dict()
-        self._total_agencies = total_agencies
-        self._threads = set()
-        self._threads_lock = threading.Lock()
         self._got_sigterm = threading.Event()
+        self._finished_agencies = threading.Barrier(parties=total_agencies)
+        self._total_agencies = total_agencies
+        self._alive_threads = set()
+        self._alive_threads_lock = threading.Lock()
         self._store_bets_lock = threading.Lock()
         self._load_bets_lock = threading.Lock()
-    
+        self._sigterm_cv = threading.Condition()
+        self._total_finished = 0    
+        self._total_finished_lock = threading.Lock()    
     # Sets sigtemr_received flag and executes shutdown on the socket
     # which causes the server to "tell" to the connected parts that it's closing them
     def __sigterm_handler(self, signum, frames):
         self._server_socket.shutdown(socket.SHUT_RDWR)
         self._got_sigterm.set()
+        with self._sigterm_cv:
+            self._sigterm_cv.notify_all()
+        # with self._sigterm_cv: 
+        #     self._sigterm_cv.notify_all()
+    
         raise SystemExit
 
     def run(self):
@@ -46,15 +53,17 @@ class Server:
             try:
                 client_sock = self.__accept_new_connection()
                 thread = threading.Thread(target=self.__handle_client_connection, args=(client_sock,))
-                self._threads.add(thread)
+                with self._alive_threads_lock: 
+                    self._alive_threads.add(thread)
                 thread.start()
-
             except (OSError, SystemExit):
                 logging.debug("action: accept_new_connections | result: finished ")
-                with self._threads_lock: 
-                    for thread in self._threads: 
-                        thread.join()
-                return
+                break
+            # finally: 
+        with self._alive_threads_lock: 
+            for thread in self._alive_threads: 
+                thread.join()
+
 
     def __recv_all(self, sock, buffer_size):
         """Receive all data from the socket, handling short-reads."""
@@ -63,17 +72,31 @@ class Server:
             if (self._got_sigterm.is_set()):
                 raise SystemExit
             
-            part = sock.recv(buffer_size)
+            # TODO: make this a constant
+            length = sock.recv(6).decode('utf-8')
+            
+            if len(length) == 0:
+                # The other side closed the connection
+                raise OSError
+            
+            part = sock.recv(int(length)) 
+            
             if len(part) == 0:
                 # The other side closed the connection
                 raise OSError
+            
 
             data += part
 
             if b"\n" in part:
+                logging.debug(f"recv_all: {data}")
                 # End of the message
                 break
         return data
+
+    def formatLength(length):
+        s = str(length)
+        
 
     # sendall allowed (?)
     def __send_all(self, sock, data):
@@ -183,17 +206,20 @@ class Server:
         try:
             batch_size, data = batch_message.split(",", 1)
             # If agency sent FIN message do not process bets
-            if not self.__agency_sent_fin(data):
-                parsed_batch_data = self.__parse_batch_data(data, int(batch_size))
-               
-                with self._store_bets_lock:
-                    store_bets(parsed_batch_data)
+            # if not self.__agency_sent_fin(data):
+            parsed_batch_data = self.__parse_batch_data(data, int(batch_size))
+            
+            with self._store_bets_lock:
+                if self._got_sigterm.is_set(): 
+                    raise SystemExit
+                store_bets(parsed_batch_data)
 
-                logging.info(
-                    f"action: apuesta_recibida | result: success | cantidad: {batch_size}"
-                )
-                # Send success to the client
-                self.__send_all(client_sock, "{}\n".format("EXITO").encode("utf-8"))
+            logging.info(
+                f"action: apuesta_recibida | result: success | cantidad: {batch_size}"
+            )
+            # Send success to the client
+            self.__send_all(client_sock, "{}\n".format("EXITO").encode("utf-8"))
+   
         except (ValueError, RuntimeError) as e:
             logging.error(
                 f"action: apuesta_recibida | result: fail | error: {e} cantidad: {batch_size or 0}"
@@ -202,17 +228,22 @@ class Server:
             self.__send_all(client_sock, "{}\n".format("ERROR").encode("utf-8"))
 
     def __process_fin(self, agency):
-        _, agency_number = agency.split("=")
-        self._agencies[agency_number] = True
-        if self.__all_agencies_finished():
+        with self._total_finished_lock:
+            self._total_finished += 1
+        if self._total_finished == self._total_agencies:
             logging.info("action: sorteo | result: success")
+            with self._sigterm_cv: 
+                self._sigterm_cv.notify_all()
+        # _, agency_number = agency.split("=")
+        # with self._agencies_lock: 
+            # self._agencies[agency_number] = True
+            # if self.__all_agencies_finished():
 
     """
     Checks if all agencies finished sending batches
     """
 
     def __all_agencies_finished(self):
-        # TODO: pass this to a constant (after my question is answered)
         if len(self._agencies) < self._total_agencies:
             return False
         for finished in self._agencies.values():
@@ -240,7 +271,10 @@ class Server:
     """
 
     def __send_results_to_agency(self, agency_number, agency_socket):
+        logging.debug("Waiting for load_bets lock...")
         with self._load_bets_lock: 
+            if self._got_sigterm.is_set(): 
+                raise SystemExit
             winners = winners_for_agency(agency_number)
         msg = "{}".format(self.__format_winners(winners)).encode("utf-8")
 
@@ -248,14 +282,26 @@ class Server:
       
         self.__send_all(agency_socket, msg)
 
-        agency_socket.close()
+        # agency_socket.close()
 
     def __process_who_won(self, agency, client_sock):
         _, agency_number = agency.split("=")
 
-        if self.__all_agencies_finished():
+        with self._sigterm_cv: 
+            while self._total_finished < self._total_agencies :
+                if self._got_sigterm.is_set():
+                    raise SystemExit
+                self._sigterm_cv.wait()
+
+
+        logging.debug("Finished waiting for barrier")
+
+        self.__send_results_to_agency(int(agency_number), client_sock)
+
+        # self._finished_agencies.wait()
+        # if self.__all_agencies_finished():
             # all agencies finished -> sending results
-            self.__send_results_to_agency(int(agency_number), client_sock)
+        
 
     """
     Demultiplexes messages received and calls the functions that process them
@@ -275,6 +321,7 @@ class Server:
         else:
             raise RuntimeError(f"Message type not recognized: {message_type}")
 
+
     def __handle_client_connection(self, client_sock):
         """
         Read message from a specific client socket and close the socket.
@@ -282,25 +329,26 @@ class Server:
         If a problem arises in the communication with the client, the
         client socket will also be closed.
         """
-
         try:
-            msg = (
-                self.__recv_all(client_sock, 1024)
-                .rstrip(b"\n")
-                .rstrip()
-                .decode("utf-8")
-            )
-            addr = client_sock.getpeername()
+            while True: 
+                msg = (
+                    self.__recv_all(client_sock, 1024)
+                    .rstrip(b"\n")
+                    .rstrip()
+                    .decode("utf-8")
+                )
+                addr = client_sock.getpeername()
 
-            logging.info(
-                f"action: receive_message | result: success | ip: {addr[0]} | msg: {msg}"
-            )
-            self.__process_message(msg, client_sock)
+                logging.info(
+                    f"action: receive_message | result: success | ip: {addr[0]} | msg: {msg}"
+                )
+                self.__process_message(msg, client_sock)
+             
         except OSError as e:
             logging.error(f"action: receive_message | result: fail | error: {e}")
         finally:
-            with self._threads_lock: 
-                self._threads.remove(threading.current_thread())
+            with self._alive_threads_lock: 
+                self._alive_threads.remove(threading.current_thread())
             client_sock.close()
 
     def __accept_new_connection(self):

@@ -5,8 +5,9 @@ loop:
   amount: 5
   period: "5s"
 log:
-  level: "INFO"
+  level: "DEBUG"
 batch:
   maxAmount: 10
 message:
-  maxSize: 8192 
+  maxSize: 8192
+  lengthBytes: 6
