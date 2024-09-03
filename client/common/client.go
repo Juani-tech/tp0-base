@@ -46,7 +46,6 @@ func NewClient(config ClientConfig) *Client {
 		config: config,
 		stop:   stop,
 	}
-
 	// goroutine to handle the signal and trigger shutdown
 	// it has to be goroutine because the channels otherwise would block the program
 	// until SIGTERM is received
@@ -119,6 +118,7 @@ func (c *Client) StartClientLoop() {
 				msg,
 			)
 
+			c.conn.Close()
 			// Wait a time between sending one message and the next one
 			time.Sleep(c.config.LoopPeriod)
 		}
@@ -209,6 +209,7 @@ func (c *Client) SendBet(g *Bet) {
 		return
 	}
 
+	c.conn.Close()
 	log.Infof("action: apuesta_enviada | result: success | dni: %s | numero: %s", g.document, g.gambledNumber)
 }
 
