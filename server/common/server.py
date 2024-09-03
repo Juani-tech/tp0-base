@@ -7,12 +7,13 @@ from common.utils import Bet, store_bets, winners_for_agency
 
 class Server:
 
-    def __init__(self, port, listen_backlog):
+    def __init__(self, port, listen_backlog, total_agencies):
         # Initialize server socket
         self._server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._server_socket.bind(("", port))
         self._server_socket.listen(listen_backlog)
         self._agencies = dict()
+        self._total_agencies = total_agencies
 
     # Sets sigtemr_received flag and executes shutdown on the socket
     # which causes the server to "tell" to the connected parts that it's closing them
@@ -193,7 +194,7 @@ class Server:
 
     def __all_agencies_finished(self):
         # TODO: pass this to a constant (after my question is answered)
-        if len(self._agencies) < 5:
+        if len(self._agencies) < self._total_agencies:
             return False
         for finished in self._agencies.values():
             if not finished:

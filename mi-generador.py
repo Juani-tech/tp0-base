@@ -32,7 +32,7 @@ if __name__ == "__main__":
                 "container_name": "server",
                 "image": "server:latest",
                 "entrypoint": "python3 /main.py",
-                "environment": ["PYTHONUNBUFFERED=1"],
+                "environment": ["PYTHONUNBUFFERED=1", f"AGENCIES={number_of_clients}"],
                 "networks": ["testing_net"],
                 "volumes": ["./server/config.ini:/config.ini"]
             },
