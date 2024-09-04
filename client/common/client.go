@@ -497,7 +497,6 @@ func (c *Client) AskForWinners() error {
 	// msg, err := bufio.NewReader(c.conn).ReadString('\n')
 	msg, err := c.RecvAll()
 
-	log.Debugf("Got winners: %s", msg)
 	// c.conn.Close()
 
 	// if err == io.EOF {
