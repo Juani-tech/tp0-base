@@ -1,7 +1,9 @@
 FROM python:3.12
 
-ENV OUTPUT_FILE_NAME
-ENV AMOUNT_OF_CLIENTS
+
+# default values here (overwritten if specified)
+ENV OUTPUT_FILE_NAME=docker-compose-dev.yaml
+ENV AMOUNT_OF_CLIENTS=1 
 
 COPY ./mi-generador.py .
 
