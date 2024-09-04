@@ -102,7 +102,8 @@ func (c *Client) StartClientLoop() {
 				return
 			}
 
-			msg, err := bufio.NewReader(c.conn).ReadString('\n')
+			// msg, err := bufio.NewReader(c.conn).ReadString('\n')
+			msg, err := c.RecvAll()
 			c.conn.Close()
 			// This checks the short-read, so no extra validation is needed
 			if err != nil {
@@ -198,6 +199,51 @@ func (c *Client) SendAll(message string) error {
 	return nil
 }
 
+func (c *Client) RecvAll() (string, error) {
+	for {
+		select {
+		case <-c.stop:
+			return "", errors.New("sigterm received")
+		default:
+			c.conn.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
+
+			reader := bufio.NewReader(c.conn)
+			buffer := make([]byte, c.config.LengthBytes)
+			bytesRead, err := reader.Read(buffer)
+
+			if err != nil || bytesRead != c.config.LengthBytes {
+				// if err, ok := err.(net.Error); ok && err.Timeout() {
+				// 	// Continue to the next iteration if the read timed out
+				// }
+				if errors.Is(err, os.ErrDeadlineExceeded) {
+					continue
+				}
+				return "", err
+			}
+
+			c.conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+
+			str := string(buffer)
+
+			length, err := strconv.Atoi(str)
+
+			if err != nil {
+				return "", err
+			}
+
+			msgBuffer := make([]byte, length)
+			bytesRead, err = reader.Read(msgBuffer)
+
+			if err != nil || bytesRead < length {
+				return "", err
+			}
+
+			// Trim the \n from the end
+			return string(msgBuffer[:bytesRead-1]), nil
+		}
+	}
+}
+
 func (c *Client) SendBet(g *Bet) {
 	// Protocol:
 	// 	- csv information with key=value format, and \n to delimit the message
@@ -264,7 +310,8 @@ func (c *Client) SendBatchesOfBets(batchesOfBets []Batch) error {
 			return err
 		}
 
-		msg, err := bufio.NewReader(c.conn).ReadString('\n')
+		// msg, err := bufio.NewReader(c.conn).ReadString('\n')
+		msg, err := c.RecvAll()
 		// c.conn.Close()
 
 		if err != nil {
@@ -447,7 +494,9 @@ func (c *Client) AskForWinners() error {
 		return err
 	}
 
-	msg, err := bufio.NewReader(c.conn).ReadString('\n')
+	// msg, err := bufio.NewReader(c.conn).ReadString('\n')
+	msg, err := c.RecvAll()
+
 	log.Debugf("Got winners: %s", msg)
 	// c.conn.Close()
 

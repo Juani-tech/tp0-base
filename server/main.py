@@ -27,6 +27,7 @@ def initialize_config():
         config_params["listen_backlog"] = int(os.getenv('SERVER_LISTEN_BACKLOG', config["DEFAULT"]["SERVER_LISTEN_BACKLOG"]))
         config_params["logging_level"] = os.getenv('LOGGING_LEVEL', config["DEFAULT"]["LOGGING_LEVEL"])
         config_params["agencies"] = int(os.getenv('AGENCIES', config["DEFAULT"]["AGENCIES"]))
+        config_params["length_bytes"] = int(os.getenv('LENGTH_BYTES', config["DEFAULT"]["LENGTH_BYTES"]))
     except KeyError as e:
         raise KeyError("Key was not found. Error: {} .Aborting server".format(e))
     except ValueError as e:
@@ -41,6 +42,7 @@ def main():
     port = config_params["port"]
     listen_backlog = config_params["listen_backlog"]
     agencies = config_params["agencies"]
+    length_bytes = config_params["length_bytes"]
     initialize_log(logging_level)
 
     # Log config parameters at the beginning of the program to verify the configuration
@@ -49,7 +51,7 @@ def main():
                   f"listen_backlog: {listen_backlog} | logging_level: {logging_level}")
 
     # Initialize server and start server loop
-    server = Server(port, listen_backlog, agencies)
+    server = Server(port, listen_backlog, agencies, length_bytes)
     server.run()
 
 def initialize_log(logging_level):

@@ -7,7 +7,7 @@ from common.utils import Bet, store_bets, winners_for_agency
 
 class Server:
 
-    def __init__(self, port, listen_backlog, total_agencies):
+    def __init__(self, port, listen_backlog, total_agencies, length_bytes):
         # Initialize server socket
         self._server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._server_socket.bind(("", port))
@@ -21,7 +21,9 @@ class Server:
         self._load_bets_lock = threading.Lock()
         self._sigterm_cv = threading.Condition()
         self._total_finished = 0    
-        self._total_finished_lock = threading.Lock()    
+        self._total_finished_lock = threading.Lock()  
+        self._length_bytes = length_bytes  
+
     # Sets sigtemr_received flag and executes shutdown on the socket
     # which causes the server to "tell" to the connected parts that it's closing them
     def __sigterm_handler(self, signum, frames):
@@ -29,8 +31,6 @@ class Server:
         self._got_sigterm.set()
         with self._sigterm_cv:
             self._sigterm_cv.notify_all()
-        # with self._sigterm_cv: 
-        #     self._sigterm_cv.notify_all()
     
         raise SystemExit
 
@@ -94,19 +94,23 @@ class Server:
                 break
         return data
 
-    def formatLength(length):
+    def __format_length(self, length):
         s = str(length)
-        
-
+        while len(s) < self._length_bytes: 
+            s = "0" + s
+        return s
+    
     # sendall allowed (?)
     def __send_all(self, sock, data):
         """Send all data through the socket, handling short-writes."""
         total_sent = 0
-        while total_sent < len(data):
+        protocol_message = "{}".format(self.__format_length(len(data))).encode("utf-8") + data
+
+        while total_sent < len(protocol_message):
             if (self._got_sigterm.is_set()):
                 raise SystemExit
             
-            sent = sock.send(data[total_sent:])
+            sent = sock.send(protocol_message[total_sent:])
             if sent == 0:
                 raise OSError
             total_sent += sent
@@ -282,6 +286,7 @@ class Server:
       
         self.__send_all(agency_socket, msg)
 
+
         # agency_socket.close()
 
     def __process_who_won(self, agency, client_sock):
@@ -342,13 +347,23 @@ class Server:
                 logging.info(
                     f"action: receive_message | result: success | ip: {addr[0]} | msg: {msg}"
                 )
-                self.__process_message(msg, client_sock)
+                # self.__process_message(msg, client_sock)
+                message_type, body = msg.split(",", 1)
+
+                # match case supported in 3.10 python version =(
+                if message_type == "BATCH":
+                    self.__process_batch(body, client_sock)
+                elif message_type == "FIN":
+                    self.__process_fin(body)
+                elif message_type == "GANADORES":
+                    self.__process_who_won(body, client_sock)
+                    break
+                else:
+                    raise RuntimeError(f"Message type not recognized: {message_type}")
              
         except OSError as e:
             logging.error(f"action: receive_message | result: fail | error: {e}")
         finally:
-            with self._alive_threads_lock: 
-                self._alive_threads.remove(threading.current_thread())
             client_sock.close()
 
     def __accept_new_connection(self):
