@@ -4,8 +4,7 @@ echo "Cantidad de clientes: $2"
 
 touch $1
 
-sudo docker build -t mi-generador .
-    
+sudo docker build -f ./Dockerfile.generador -t mi-generador .
 
 sudo docker run \
     -e OUTPUT_FILE_NAME=$1 \
