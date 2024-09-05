@@ -229,4 +229,18 @@ sh validar-echo-server.sh
 
   - BATCH,[cant_apuestas],AGENCIA=x,NOMBRE=Juan...\n
 
-- En el lado del receptor, se leen los primeros 6 bytes para indicar el largo, seguido del mensaje. Termina el
+- En el lado del receptor, se leen los primeros 6 bytes para indicar el largo, seguido del mensaje, se seguira con ese proceso hasta que el mensaje contenga un \n, en tal caso se devuelve lo leido.
+
+## Parte 3
+
+- Para esta ultima parte utilice las siguientes herramientas de sincronizacion
+  - locks:
+    - En server:
+      - Para sincronizar el acceso a alive_threads, que es un set que guarda los threads que no terminaron. Es necesario porque al final de la ejecucion de un thread, el mismo debera eliminarse de dicho set.
+    - En protocol:
+      - Para sincronizar el acceso a store_bets
+      - Para sincronizar el acceso a load_bets
+      - Para sincronizar el acceso a agencies_sent_fin, que es un diccionario que guarda todas las agencias que se conectaron como key, y el valor es True si la misma mando el mensaje de fin de batches, False si no.
+  - Condition variable
+    - En protocol:
+      - Esta puede sonar un poco raro, por que no usaria barreras es la pregunta (para sincronizar a los threads cuando estan solicitando los ganadores). La respuesta es que, si bien se puede, dificultaba el manejo de la signal SIGTERM, ya que al hacer wait se bloqueaba el thread por completo, sin embargo usando esta primitiva de sincronizacion, se permite que, una vez llega SIGTERM al hilo principal, se desbloqueen todos los hilos que estaban esperando, checkean si el evento 'got_sigterm' fue set, y sino, checkean la condicion de si todas las agencias terminaron. En el caso de que terminen todas las agencias, al ejecutar por ultima vez la funcion `_process_fin`, se checkea si todas terminaron, y en tal caso
