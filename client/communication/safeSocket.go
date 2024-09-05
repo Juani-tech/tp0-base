@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/op/go-logging"
@@ -51,7 +52,13 @@ func (s *SafeSocket) SendAll(message string) error {
 	return nil
 }
 
+// RecvAll reads a message from the connection. It first reads a fixed-length header that indicates the
+// length of the message, then reads the actual message.
+//
+// Returns the message as a string, or an error if something goes wrong during reading.
 func (s *SafeSocket) RecvAllWithLengthBytes() (string, error) {
+	totalMessage := ""
+
 	for {
 		select {
 		case <-s.stop:
@@ -75,7 +82,6 @@ func (s *SafeSocket) RecvAllWithLengthBytes() (string, error) {
 			str := string(buffer)
 
 			length, err := strconv.Atoi(str)
-
 			if err != nil {
 				return "", err
 			}
@@ -87,8 +93,14 @@ func (s *SafeSocket) RecvAllWithLengthBytes() (string, error) {
 				return "", err
 			}
 
-			// Trim the \n from the end
-			return string(msgBuffer[:bytesRead-1]), nil
+			// Accumulate the message buffer into totalMessage
+			totalMessage += string(msgBuffer[:bytesRead])
+
+			// Check if the accumulated message contains a newline
+			if strings.Contains(totalMessage, "\n") {
+				// Trim the \n and return the full message
+				return strings.TrimSuffix(totalMessage, "\n"), nil
+			}
 		}
 	}
 }
