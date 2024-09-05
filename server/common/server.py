@@ -1,18 +1,21 @@
 import socket
 import logging
 import signal
-import time
 
 from common.utils import Bet, store_bets
+from communication.safe_socket import SafeSocket
+from communication.protocol import Protocol
 
 
 class Server:
 
-    def __init__(self, port, listen_backlog):
+    def __init__(self, port, listen_backlog, length_bytes):
         # Initialize server socket
         self._server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._server_socket.bind(("", port))
         self._server_socket.listen(listen_backlog)
+        self._protocol = Protocol()
+        self._length_bytes = length_bytes
 
     # Sets sigtemr_received flag and executes shutdown on the socket
     # which causes the server to "tell" to the connected parts that it's closing them
@@ -37,27 +40,27 @@ class Server:
 
         while True:
             try:
-                client_sock = self.__accept_new_connection()
+                client_sock = SafeSocket(self.__accept_new_connection(), self._length_bytes)
                 self.__handle_client_connection(client_sock)
             except (OSError, SystemExit):
                 logging.debug(f"action: accept_new_connections | result: finished")
                 return
 
-    """ 
-    Parses a message with the format: K1=V1,K2=V2,...,Kn=Vn and returns a dictionary with the
-    parsed key-values 
-    """
+    # """ 
+    # Parses a message with the format: K1=V1,K2=V2,...,Kn=Vn and returns a dictionary with the
+    # parsed key-values 
+    # """
 
-    def __parse_csv_kv(self, msg):
-        data = dict()
-        # Split by comma, leaving a list of [Key=Value, ...] values
-        separated_csv = msg.split(",")
+    # def __parse_csv_kv(self, msg):
+    #     data = dict()
+    #     # Split by comma, leaving a list of [Key=Value, ...] values
+    #     separated_csv = msg.split(",")
 
-        for kv in separated_csv:
-            # Split by "=", leaving a (key,value) pair
-            k, v = kv.split("=")
-            data[k] = v
-        return data
+    #     for kv in separated_csv:
+    #         # Split by "=", leaving a (key,value) pair
+    #         k, v = kv.split("=")
+    #         data[k] = v
+    #     return data
 
     def __handle_client_connection(self, client_sock):
         """
@@ -67,54 +70,24 @@ class Server:
         client socket will also be closed.
         """
 
-        def recv_all(sock, buffer_size):
-            """Receive all data from the socket, handling short-reads."""
-            data = b""
-            while True:
-                part = sock.recv(buffer_size)
-                if len(part) == 0:
-                    # The other side closed the connection
-                    raise OSError
-                elif b"\n" in part:
-                    data += part
-                    # End of the message
-                    break
-            return data
 
-        # # sendall allowed (?)
-        # def send_all(sock, data):
-        #     """Send all data through the socket, handling short-writes."""
-        #     total_sent = 0
-        #     while total_sent < len(data):
-        #         sent = sock.send(data[total_sent:])
-        #         if sent == 0:
-        #             raise OSError
-        #         total_sent += sent
 
         try:
-            msg = recv_all(client_sock, 1024).rstrip(b"\n").rstrip().decode("utf-8")
+            msg = client_sock.recv_all_with_length_bytes().rstrip().rstrip(b"\n").decode('utf-8')
             addr = client_sock.getpeername()
 
             logging.info(
                 f"action: receive_message | result: success | ip: {addr[0]} | msg: {msg}"
             )
 
-            parsed_bet_data = self.__parse_csv_kv(msg)
+            bet = self._protocol.parse_csv_kv(msg)
             # I guess it has to be a list for batching (ej6)
             store_bets(
                 [
-                    Bet(
-                        agency=parsed_bet_data["AGENCIA"],
-                        first_name=parsed_bet_data["NOMBRE"],
-                        last_name=parsed_bet_data["APELLIDO"],
-                        document=parsed_bet_data["DOCUMENTO"],
-                        birthdate=parsed_bet_data["NACIMIENTO"],
-                        number=parsed_bet_data["NUMERO"],
-                    )
+                    bet
                 ]
             )
             # Not needed anymore
-            # send_all(client_sock, "{}\n".format(msg).encode("utf-8"))
         except OSError as e:
             logging.error(f"action: receive_message | result: fail | error: {e}")
         finally:

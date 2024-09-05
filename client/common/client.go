@@ -1,14 +1,14 @@
 package common
 
 import (
-	"bufio"
-	"errors"
-	"fmt"
 	"net"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/7574-sistemas-distribuidos/docker-compose-init/client/communication"
+	"github.com/7574-sistemas-distribuidos/docker-compose-init/client/services"
 
 	"github.com/op/go-logging"
 )
@@ -21,12 +21,13 @@ type ClientConfig struct {
 	ServerAddress string
 	LoopAmount    int
 	LoopPeriod    time.Duration
+	LengthBytes   int
 }
 
 // Client Entity that encapsulates how
 type Client struct {
 	config ClientConfig
-	conn   net.Conn
+	conn   communication.SafeSocket
 	stop   chan bool
 }
 
@@ -67,92 +68,11 @@ func (c *Client) createClientSocket() error {
 		// Added this return (needed)
 		return err
 	}
-	c.conn = conn
+	c.conn = *communication.NewSafeSocket(conn, c.stop, c.config.LengthBytes)
 	return nil
 }
 
-// StartClientLoop Send messages to the client until some time threshold is met
-func (c *Client) StartClientLoop() {
-	// There is an autoincremental msgID to identify every message sent
-	// Messages if the message amount threshold has not been surpassed
-
-	for msgID := 1; msgID <= c.config.LoopAmount; msgID++ {
-		// As tour of go says:
-		// The select statement lets a goroutine wait on multiple communication operations.
-		select {
-		case <-c.stop:
-			log.Debugf("action: loop_terminated | result: interrupted | client_id: %v", c.config.ID)
-			c.conn.Close()
-			return
-		default:
-			c.createClientSocket()
-			message := fmt.Sprintf("[CLIENT %v] Message N°%v\n", c.config.ID, msgID)
-			err := c.SendAll(message)
-
-			if err != nil {
-				log.Debugf("action: send_message | result: fail | client_id: %v | error: %v",
-					c.config.ID,
-					err,
-				)
-				return
-			}
-
-			msg, err := bufio.NewReader(c.conn).ReadString('\n')
-			c.conn.Close()
-			// This checks the short-read, so no extra validation is needed
-			if err != nil {
-				log.Errorf("action: receive_message | result: fail | client_id: %v | error: %v",
-					c.config.ID,
-					err,
-				)
-				return
-			}
-
-			log.Infof("action: receive_message | result: success | client_id: %v | msg: %v",
-				c.config.ID,
-				msg,
-			)
-
-			c.conn.Close()
-			// Wait a time between sending one message and the next one
-			time.Sleep(c.config.LoopPeriod)
-		}
-	}
-	log.Infof("action: loop_finished | result: success | client_id: %v", c.config.ID)
-}
-
-// Tries to send all the bytes in string, returns the error raised if there is one
-func (c *Client) SendAll(message string) error {
-	for bytesSent := 0; bytesSent < len(message); {
-		select {
-		case <-c.stop:
-			log.Debugf("action: send_all | result: interrupted | client_id: %v", c.config.ID)
-			return errors.New("sigterm received")
-		default:
-			bytes, err := fmt.Fprint(
-				c.conn,
-				message[bytesSent:],
-			)
-
-			if err != nil {
-				log.Debugf("action: send_message | result: fail | client_id: %v | error: %v",
-					c.config.ID,
-					err,
-				)
-				return err
-			}
-
-			bytesSent += bytes
-		}
-	}
-	return nil
-}
-
-func (c *Client) SendBet(g *Gambler) {
-	// Protocol:
-	// 	- csv information with key=value format, and \n to delimit the message
-	// 	- Example:
-	// NOMBRE=Juan,APELLIDO=Perez,DOCUMENTO=11111111,NACIMIENTO=2020-03-03,NUMERO=1234\n
+func (c *Client) SendBet(b *services.Bet) {
 	err := c.createClientSocket()
 	defer c.conn.Close()
 
@@ -163,10 +83,8 @@ func (c *Client) SendBet(g *Gambler) {
 		)
 		return
 	}
-	message :=
-		fmt.Sprintf("AGENCIA=%s,NOMBRE=%s,APELLIDO=%s,DOCUMENTO=%s,NACIMIENTO=%s,NUMERO=%s\n", c.config.ID, g.name, g.surname, g.document, g.birthDate, g.gambledNumber)
-
-	err = c.SendAll(message)
+	protocol := *communication.NewProtocol(c.conn, c.config.ID, c.config.LengthBytes)
+	err = protocol.SendBet(b)
 
 	if err != nil {
 		log.Debugf("action: send_bet | result: fail | client_id: %v | error: %v",
@@ -177,5 +95,5 @@ func (c *Client) SendBet(g *Gambler) {
 	}
 
 	c.conn.Close()
-	log.Infof("action: apuesta_enviada | result: success | dni: %s | numero: %s", g.document, g.gambledNumber)
+	log.Infof("action: apuesta_enviada | result: success | dni: %s | numero: %s", b.Document, b.GambledNumber)
 }
