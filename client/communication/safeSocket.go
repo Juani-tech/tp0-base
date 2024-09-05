@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/op/go-logging"
@@ -72,6 +73,8 @@ func (s *SafeSocket) SendAll(message string) error {
 //
 // Returns the message as a string, or an error if something goes wrong during reading.
 func (s *SafeSocket) RecvAll() (string, error) {
+	totalMessage := ""
+
 	for {
 		select {
 		case <-s.stop:
@@ -106,8 +109,14 @@ func (s *SafeSocket) RecvAll() (string, error) {
 				return "", err
 			}
 
-			// Trim the \n from the end of the message
-			return string(msgBuffer[:bytesRead-1]), nil
+			// Accumulate the message buffer into totalMessage
+			totalMessage += string(msgBuffer[:bytesRead])
+
+			// Check if the accumulated message contains a newline
+			if strings.Contains(totalMessage, "\n") {
+				// Trim the \n and return the full message
+				return strings.TrimSuffix(totalMessage, "\n"), nil
+			}
 		}
 	}
 }
