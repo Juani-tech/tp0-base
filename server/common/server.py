@@ -94,7 +94,7 @@ class Server:
                 if message_type == "BATCH":
                     self._protocol.process_batch(body, client_sock)
                 elif message_type == "FIN":
-                    self._protocol.process_fin()
+                    self._protocol.process_fin(body)
                 elif message_type == "GANADORES":
                     self._protocol.process_who_won(body, client_sock)
                     break

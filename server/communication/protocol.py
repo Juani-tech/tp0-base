@@ -8,8 +8,8 @@ class Protocol:
         self._total_agencies = total_agencies
         self._store_bets_lock = Lock()
         self._load_bets_lock = Lock()
-        self._total_finished = 0
-        self._total_finished_lock = Lock()
+        self._agencies_sent_fin = dict()
+        self._agencies_sent_fin_lock = Lock()
         self._sigterm_cv = sigterm_cv
 
     def __validate_bet_data(self, data):
@@ -118,8 +118,6 @@ class Protocol:
         agency_socket.send_all(msg)
 
 
-        # agency_socket.close()
-
 
 
     def process_batch(self, batch_message, client_sock):
@@ -127,8 +125,6 @@ class Protocol:
         batch_size = None
         try:
             batch_size, data = batch_message.split(",", 1)
-            # If agency sent FIN message do not process bets
-            # if not self.__agency_sent_fin(data):
             parsed_batch_data = self.__parse_batch_data(data, int(batch_size))
             
             with self._store_bets_lock:
@@ -152,35 +148,39 @@ class Protocol:
 
 
 
-    def process_fin(self):
-        with self._total_finished_lock:
-            self._total_finished += 1
-        if self._total_finished == self._total_agencies:
+    def process_fin(self, agency):
+        _, agency_number = agency.split("=")
+        with self._agencies_sent_fin_lock:
+            self._agencies_sent_fin[agency_number] = True
+        if self.__all_agencies_finished:
             logging.info("action: sorteo | result: success")
             with self._sigterm_cv: 
                 self._sigterm_cv.notify_all()
-        # _, agency_number = agency.split("=")
-        # with self._agencies_lock: 
-            # self._agencies[agency_number] = True
-            # if self.__all_agencies_finished():
 
+    """
+    Checks if all agencies finished sending batches
+    """
 
+    def __all_agencies_finished(self):
+        if len(self._agencies_sent_fin) < self._total_agencies:
+            return False
+        with self._agencies_sent_fin_lock:
+            for finished in self._agencies_sent_fin.values():
+                if not finished:
+                    return False
+        return True
 
     def process_who_won(self, agency, client_sock):
         _, agency_number = agency.split("=")
 
         with self._sigterm_cv: 
-            while self._total_finished < self._total_agencies :
+            while not self.__all_agencies_finished():
                 if self._got_sigterm.is_set():
                     raise SystemExit
                 self._sigterm_cv.wait()
 
 
-        logging.debug("Finished waiting for barrier")
 
         self.__send_results_to_agency(int(agency_number), client_sock)
 
-        # self._finished_agencies.wait()
-        # if self.__all_agencies_finished():
-            # all agencies finished -> sending results
         
