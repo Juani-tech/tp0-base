@@ -1,19 +1,22 @@
-package common
+package services
 
 import (
 	"encoding/csv"
 	"io"
 	"os"
 
+	"github.com/op/go-logging"
 	"github.com/spf13/viper"
 )
 
+var log = logging.MustGetLogger("log")
+
 type Bet struct {
-	name          string
-	surname       string
-	document      string
-	birthDate     string
-	gambledNumber string
+	Name          string
+	Surname       string
+	Document      string
+	BirthDate     string
+	GambledNumber string
 }
 
 type Batch [][]string
@@ -30,20 +33,21 @@ func NewBetFromENV() *Bet {
 	v.BindEnv("nacimiento")
 	v.BindEnv("numero")
 
-	log.Debugf("action: config_bet | result: success | name: %s | surname: %s | document: %v | birthDate: %v | number: %s",
+	log.Debugf("action: config_Bet | result: success | name: %s | surname: %s | document: %v | birthDate: %v | number: %s",
 		v.GetString("nombre"),
 		v.GetString("apellido"),
 		v.GetString("documento"),
-		v.GetString("nacimiento"),
+		// v.GetString("nacimiento"),
+		os.Getenv("CLI_NACIMIENTO"),
 		v.GetString("numero"),
 	)
 
 	return &Bet{
-		name:          v.GetString("nombre"),
-		surname:       v.GetString("apellido"),
-		document:      v.GetString("documento"),
-		birthDate:     v.GetString("nacimiento"),
-		gambledNumber: v.GetString("numero"),
+		Name:          v.GetString("nombre"),
+		Surname:       v.GetString("apellido"),
+		Document:      v.GetString("documento"),
+		BirthDate:     os.Getenv("CLI_NACIMIENTO"),
+		GambledNumber: v.GetString("numero"),
 	}
 }
 

@@ -9,4 +9,5 @@ log:
 batch:
   maxAmount: 10
 message:
-  maxSize: 8192 
+  maxSize: 8192
+  lengthBytes: 6

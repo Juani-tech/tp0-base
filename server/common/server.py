@@ -1,18 +1,21 @@
 import socket
 import logging
 import signal
-import time
 
 from common.utils import Bet, store_bets
+from communication.safe_socket import SafeSocket
+from communication.protocol import Protocol
 
 
 class Server:
 
-    def __init__(self, port, listen_backlog):
+    def __init__(self, port, listen_backlog, length_bytes):
         # Initialize server socket
         self._server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._server_socket.bind(("", port))
         self._server_socket.listen(listen_backlog)
+        self._protocol = Protocol()
+        self._length_bytes = length_bytes
 
     # Sets sigtemr_received flag and executes shutdown on the socket
     # which causes the server to "tell" to the connected parts that it's closing them
@@ -37,106 +40,10 @@ class Server:
 
         while True:
             try:
-                client_sock = self.__accept_new_connection()
+                client_sock = SafeSocket(self.__accept_new_connection(), self._length_bytes)
                 self.__handle_client_connection(client_sock)
             except (OSError, SystemExit):
                 return
-
-    def __recv_all(self, sock, buffer_size):
-        """Receive all data from the socket, handling short-reads."""
-        data = b""
-        while True:
-            part = sock.recv(buffer_size)
-            if len(part) == 0:
-                # The other side closed the connection
-                raise OSError
-
-            data += part
-
-            if b"\n" in part:
-                # End of the message
-                break
-        return data
-
-    # sendall allowed (?)
-    def __send_all(self, sock, data):
-        """Send all data through the socket, handling short-writes."""
-        total_sent = 0
-        while total_sent < len(data):
-            sent = sock.send(data[total_sent:])
-            if sent == 0:
-                raise OSError
-            total_sent += sent
-
-    def __validate_bet_data(self, data):
-        expected_keys = [
-            "AGENCIA",
-            "NOMBRE",
-            "APELLIDO",
-            "DOCUMENTO",
-            "NACIMIENTO",
-            "NUMERO",
-        ]
-        for key in expected_keys:
-            if key not in data.keys():
-                raise RuntimeError("Missing data: ", key)
-
-    """ 
-    Parses a message with the format: K1=V1,K2=V2,...,Kn=Vn and returns a Bet object.
-    Raises an exception if the data is not correctly formatted, or something is misising 
-    """
-
-    def __parse_csv_kv(self, msg):
-        data = dict()
-        # Split by comma, leaving a list of [Key=Value, ...] values
-        separated_csv = msg.split(",")
-
-        for kv in separated_csv:
-            if "=" not in kv:
-                raise ValueError(f"Invalid key-value pair format: '{kv}'")
-
-            # Split by "=", leaving a (key,value) pair
-            k, v = kv.split("=")
-
-            k = k.strip()
-            v = v.strip()
-
-            if not k:
-                raise ValueError(f"Empty key found in: '{kv}'")
-            if not v:
-                raise ValueError(f"Empty value found for key '{k}'")
-
-            if k in data:
-                raise ValueError(f"Duplicate key found: '{k}'")
-
-            data[k] = v
-
-        self.__validate_bet_data(data)
-
-        bet = Bet(
-            agency=data["AGENCIA"],
-            first_name=data["NOMBRE"],
-            last_name=data["APELLIDO"],
-            document=data["DOCUMENTO"],
-            birthdate=data["NACIMIENTO"],
-            number=data["NUMERO"],
-        )
-
-        return bet
-
-    def __parse_batch_data(self, batch, expectedBatchSize):
-        if not batch:
-            raise ValueError("Batch data is empty")
-
-        records = batch.split(":")
-        bets = [self.__parse_csv_kv(record) for record in records]
-
-        if len(bets) != expectedBatchSize:
-            raise RuntimeError(
-                f"Expected batch size: {expectedBatchSize}, got batch of: {len(bets)}"
-            )
-
-        return bets
 
     def __handle_client_connection(self, client_sock):
         """
@@ -145,32 +52,18 @@ class Server:
         If a problem arises in the communication with the client, the
         client socket will also be closed.
         """
-
-        # Have to declare it here, otherwise the except block woudln't be able to access it
+        
         batch_size = None
-
         try:
-            msg = (
-                self.__recv_all(client_sock, 1024)
-                .rstrip(b"\n")
-                .rstrip()
-                .decode("utf-8")
-            )
-            addr = client_sock.getpeername()
+            while True: 
+                msg = client_sock.recv_all_with_length_bytes().rstrip().rstrip(b"\n").decode('utf-8')
+                addr = client_sock.getpeername()
 
-            logging.info(
-                f"action: receive_message | result: success | ip: {addr[0]} | msg: {msg}"
-            )
-            batch_size, data = msg.split(",", 1)
+                logging.info(
+                    f"action: receive_message | result: success | ip: {addr[0]} | msg: {msg}"
+                )
+                self._protocol.process_batch(msg, client_sock)
 
-            parsed_batch_data = self.__parse_batch_data(data, int(batch_size))
-            store_bets(parsed_batch_data)
-
-            logging.info(
-                f"action: apuesta_recibida | result: success | cantidad: {batch_size}"
-            )
-            # Send success to the client
-            self.__send_all(client_sock, "{}\n".format("EXITO").encode("utf-8"))
         except (ValueError, RuntimeError) as e:
             logging.error(
                 f"action: apuesta_recibida | result: fail | error: {e} cantidad: {batch_size or 0}"

@@ -39,6 +39,7 @@ func InitConfig() (*viper.Viper, error) {
 	v.BindEnv("log", "level")
 	v.BindEnv("batch", "maxAmount")
 	v.BindEnv("message", "maxSize")
+	v.BindEnv("message", "lengthBytes")
 
 	// Try to read configuration from config file. If config file
 	// does not exists then ReadInConfig will fail but configuration
@@ -106,19 +107,17 @@ func main() {
 	PrintConfig(v)
 
 	clientConfig := common.ClientConfig{
-		ServerAddress: v.GetString("server.address"),
-		ID:            v.GetString("id"),
-		LoopAmount:    v.GetInt("loop.amount"),
-		LoopPeriod:    v.GetDuration("loop.period"),
+		ServerAddress:  v.GetString("server.address"),
+		ID:             v.GetString("id"),
+		LoopAmount:     v.GetInt("loop.amount"),
+		LoopPeriod:     v.GetDuration("loop.period"),
+		BatchSize:      v.GetInt("batch.maxAmount"),
+		MaxMessageSize: v.GetInt("message.maxSize"),
+		LengthBytes:    v.GetInt("message.lengthBytes"),
 	}
 
 	client := common.NewClient(clientConfig)
-	batchesOfBets, err := common.BatchOfBetsFromCsvFile("./data.csv", v.GetInt("batch.maxAmount"))
-	if err != nil {
-		log.Debugf("%s", err)
-		return
-	}
-	err = client.SendBatchesOfBets(batchesOfBets, v.GetInt("message.maxSize"))
+	err = client.SendBatchesOfBets()
 	if err != nil {
 		log.Debugf("%s", err)
 		return
