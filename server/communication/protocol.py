@@ -238,10 +238,13 @@ class Protocol:
         """
         _, agency_number = agency.split("=")
 
-        with self._sigterm_cv:
-            while not self.__all_agencies_finished():
-                if self._got_sigterm.is_set():
-                    raise SystemExit
-                self._sigterm_cv.wait()
+        if self.__all_agencies_finished(): 
+            self.__send_results_to_agency(int(agency_number), client_sock)
+        else: 
+            with self._sigterm_cv:
+                while not self.__all_agencies_finished():
+                    if self._got_sigterm.is_set():
+                        raise SystemExit
+                    self._sigterm_cv.wait()
 
-        self.__send_results_to_agency(int(agency_number), client_sock)
+            self.__send_results_to_agency(int(agency_number), client_sock)
