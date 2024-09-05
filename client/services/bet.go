@@ -14,11 +14,11 @@ import (
 var log = logging.MustGetLogger("log")
 
 type Bet struct {
-	name          string
-	surname       string
-	document      string
-	birthDate     string
-	gambledNumber string
+	Name          string
+	Surname       string
+	Document      string
+	BirthDate     string
+	GambledNumber string
 }
 
 type Batch [][]string
@@ -44,11 +44,11 @@ func NewBetFromENV() *Bet {
 	)
 
 	return &Bet{
-		name:          v.GetString("nombre"),
-		surname:       v.GetString("apellido"),
-		document:      v.GetString("documento"),
-		birthDate:     v.GetString("nacimiento"),
-		gambledNumber: v.GetString("numero"),
+		Name:          v.GetString("nombre"),
+		Surname:       v.GetString("apellido"),
+		Document:      v.GetString("documento"),
+		BirthDate:     v.GetString("nacimiento"),
+		GambledNumber: v.GetString("numero"),
 	}
 }
 

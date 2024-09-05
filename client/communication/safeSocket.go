@@ -12,6 +12,8 @@ import (
 	"github.com/op/go-logging"
 )
 
+// SafeSocket wraps a net.Conn and provides safe methods for sending and receiving data,
+// respecting SIGTERM signals via a stop channel.
 type SafeSocket struct {
 	conn        net.Conn
 	stop        chan bool
@@ -20,6 +22,14 @@ type SafeSocket struct {
 
 var log = logging.MustGetLogger("log")
 
+// NewSafeSocket creates and returns a new SafeSocket instance.
+//
+// Parameters:
+// - conn: the underlying network connection.
+// - stop: a channel used to signal when to stop processing (e.g., on SIGTERM).
+// - lengthBytes: the number of bytes that represent the message length.
+//
+// Returns a pointer to the SafeSocket instance.
 func NewSafeSocket(conn net.Conn, stop chan bool, lengthBytes int) *SafeSocket {
 	return &SafeSocket{
 		conn:        conn,
@@ -28,7 +38,13 @@ func NewSafeSocket(conn net.Conn, stop chan bool, lengthBytes int) *SafeSocket {
 	}
 }
 
-// Tries to send all the bytes in string, returns the error raised if there is one
+// SendAll sends the entire message over the network connection. It handles partial writes
+// by continuing until the entire message is sent.
+//
+// Parameters:
+// - message: the string message to be sent.
+//
+// Returns an error if the operation fails, either due to the connection being interrupted or any other error.
 func (s *SafeSocket) SendAll(message string) error {
 	for bytesSent := 0; bytesSent < len(message); {
 		select {
@@ -51,6 +67,10 @@ func (s *SafeSocket) SendAll(message string) error {
 	return nil
 }
 
+// RecvAll reads a message from the connection. It first reads a fixed-length header that indicates the
+// length of the message, then reads the actual message.
+//
+// Returns the message as a string, or an error if something goes wrong during reading.
 func (s *SafeSocket) RecvAll() (string, error) {
 	for {
 		select {
@@ -64,9 +84,6 @@ func (s *SafeSocket) RecvAll() (string, error) {
 			bytesRead, err := reader.Read(buffer)
 
 			if err != nil || bytesRead != s.lengthBytes {
-				// if err, ok := err.(net.Error); ok && err.Timeout() {
-				// 	// Continue to the next iteration if the read timed out
-				// }
 				if errors.Is(err, os.ErrDeadlineExceeded) {
 					continue
 				}
@@ -78,7 +95,6 @@ func (s *SafeSocket) RecvAll() (string, error) {
 			str := string(buffer)
 
 			length, err := strconv.Atoi(str)
-
 			if err != nil {
 				return "", err
 			}
@@ -90,12 +106,13 @@ func (s *SafeSocket) RecvAll() (string, error) {
 				return "", err
 			}
 
-			// Trim the \n from the end
+			// Trim the \n from the end of the message
 			return string(msgBuffer[:bytesRead-1]), nil
 		}
 	}
 }
 
+// Close closes the underlying network connection.
 func (s *SafeSocket) Close() {
 	s.conn.Close()
 }

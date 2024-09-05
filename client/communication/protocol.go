@@ -30,17 +30,6 @@ func NewProtocol(conn SafeSocket, batchSize int, stop chan bool, clientId string
 }
 
 func (p *Protocol) RunProtocol() error {
-	// err := c.createClientSocket()
-	// defer c.conn.Close()
-
-	// if err != nil {
-	// 	log.Debugf("action: create_client_socket | result: fail | client_id: %v | error: %v",
-	// 		p.clientId,
-	// 		err,
-	// 	)
-	// 	return err
-	// }
-
 	batchesOfBets, err := services.BatchOfBetsFromCsvFile("./data.csv", p.batchSize, p.stop)
 
 	if err != nil {
@@ -69,43 +58,27 @@ func (p *Protocol) RunProtocol() error {
 		return err
 	}
 
-	// c.conn.Close()
-
 	return nil
 }
 
-// func (p *Protocol) SendBet(g services.Bet) error {
-// 	// Protocol:
-// 	// 	- csv information with key=value format, and \n to delimit the message
-// 	// 	- Example:
-// 	// NOMBRE=Juan,APELLIDO=Perez,DOCUMENTO=11111111,NACIMIENTO=2020-03-03,NUMERO=1234\n
-// 	// err := c.createClientSocket()
-// 	// defer c.conn.Close()
+func (p *Protocol) SendBet(g services.Bet) error {
+	// Protocol:
+	// 	- csv information with key=value format, and \n to delimit the message
+	// 	- Example:
+	// NOMBRE=Juan,APELLIDO=Perez,DOCUMENTO=11111111,NACIMIENTO=2020-03-03,NUMERO=1234\n
 
-// 	// if err != nil {
-// 	// 	log.Debugf("action: send_bet | result: fail | client_id: %v | error: %v",
-// 	// 		p.clientId,
-// 	// 		err,
-// 	// 	)
-// 	// 	return
-// 	// }
-// 	message :=
-// 		fmt.Sprintf("AGENCIA=%s,NOMBRE=%s,APELLIDO=%s,DOCUMENTO=%s,NACIMIENTO=%s,NUMERO=%s\n", p.clientId, g.name, g.surname, g.document, g.birthDate, g.gambledNumber)
+	message :=
+		fmt.Sprintf("AGENCIA=%s,NOMBRE=%s,APELLIDO=%s,DOCUMENTO=%s,NACIMIENTO=%s,NUMERO=%s\n", p.clientId, g.Name, g.Surname, g.Document, g.BirthDate, g.GambledNumber)
 
-// 	err := p.conn.SendAll(message)
+	err := p.conn.SendAll(message)
 
-// 	if err != nil {
-// 		// log.Debugf("action: send_bet | result: fail | client_id: %v | error: %v",
-// 		// 	p.clientId,
-// 		// 	err,
-// 		// )
-// 		return err
-// 	}
+	if err != nil {
+		return err
+	}
 
-// 	// c.conn.Close()
-// 	log.Infof("action: apuesta_enviada | result: success | dni: %s | numero: %s", g.document, g.gambledNumber)
-// 	return nil
-// }
+	log.Infof("action: apuesta_enviada | result: success | dni: %s | numero: %s", g.Document, g.GambledNumber)
+	return nil
+}
 
 // maxBatchSize represents the maximum amount of bytes sent per message
 func (p *Protocol) SendBatchesOfBets(batchesOfBets []services.Batch) error {
@@ -237,21 +210,8 @@ func (p *Protocol) sendMessageWithMaxSize(message string) error {
 }
 
 func (p *Protocol) NotifyEndOfBatches() error {
-	// err := c.createClientSocket()
-	// defer c.conn.Close()
-
-	// if err != nil {
-	// 	log.Debugf("action: create_client_socket | result: fail | client_id: %v | error: %v",
-	// 		p.clientId,
-	// 		err,
-	// 	)
-	// 	return err
-	// }
-
 	message := fmt.Sprintf("FIN,AGENCIA=%s\n", p.clientId)
 	err := p.sendMessageWithMaxSize(message)
-
-	// c.conn.Close()
 
 	if err != nil {
 		log.Debugf("action: notify_server | result: fail | error: %v", err)
@@ -285,23 +245,6 @@ func (p *Protocol) parseWinners(message string) (uint32, error) {
 }
 
 func (p *Protocol) AskForWinners() error {
-	// for {
-	// select {
-	// case <-c.stop:
-	// 	log.Debugf("action: ask_winners | result: interrupted")
-	// 	return errors.New("sigterm received")
-	// default:
-	// err := c.createClientSocket()
-	// defer c.conn.Close()
-
-	// if err != nil {
-	// 	log.Debugf("action: create_client_socket | result: fail | client_id: %v | error: %v",
-	// 		p.clientId,
-	// 		err,
-	// 	)
-	// 	return err
-	// }
-
 	message := fmt.Sprintf("GANADORES,AGENCIA=%s\n", p.clientId)
 
 	err := p.sendMessageWithMaxSize(message)
@@ -310,15 +253,8 @@ func (p *Protocol) AskForWinners() error {
 		return err
 	}
 
-	// msg, err := bufio.NewReader(c.conn).ReadString('\n')
 	msg, err := p.conn.RecvAll()
 
-	// c.conn.Close()
-
-	// if err == io.EOF {
-	// time.Sleep(1 * time.Second)
-	// continue
-	// } else
 	if err != nil {
 		log.Debugf("action: receive_winners | result: fail | error: %v", err)
 		return err
@@ -332,9 +268,7 @@ func (p *Protocol) AskForWinners() error {
 	}
 
 	log.Infof("action: consulta_ganadores | result: success | cant_ganadores: %d", amountOfWinners)
-	// }
 
 	return nil
-	// }
 
 }

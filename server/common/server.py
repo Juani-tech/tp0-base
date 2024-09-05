@@ -60,13 +60,6 @@ class Server:
                 thread.join()
 
 
-
-    """
-    Demultiplexes messages received and calls the functions that process them
-    Raises a RuntimeError in case the message is not recognized
-    """
-
-
     def __handle_client_connection(self, client_sock):
         """
         Read message from a specific client socket and close the socket.
