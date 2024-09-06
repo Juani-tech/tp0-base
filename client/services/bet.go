@@ -1,10 +1,12 @@
 package services
 
 import (
+	"bufio"
 	"encoding/csv"
 	"errors"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/op/go-logging"
 
@@ -94,6 +96,53 @@ func BatchOfBetsFromCsvFile(filePath string, batchSize int, c chan bool) ([]Batc
 				batchesOfBets = append(batchesOfBets, actualBatch)
 				actualBatch = make(Batch, 0)
 			}
+		}
+	}
+
+}
+
+func BatchOfBetsFromCsvFileManualAtPosition(filePath string, batchSize int, startPosition int64) (Batch, int64, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		// log.Printf("action: open_csv | result: fail | filepath: %s | err: %s", filePath, err)
+		return nil, 0, err
+	}
+	defer file.Close()
+
+	// Seek to the specified start position
+	_, err = file.Seek(startPosition, io.SeekStart)
+	if err != nil {
+		// log.Debugf("action: seek_csv | result: fail | filepath: %s | err: %s", filePath, err)
+		return nil, 0, err
+	}
+
+	reader := bufio.NewReader(file)
+	batch := make(Batch, 0)
+	bytesRead := startPosition // Start the byte count from the seek position
+
+	for {
+		// Read each line (representing a CSV row)
+		line, err := reader.ReadString('\n')
+		bytesRead += int64(len(line))
+
+		// Check if EOF is reached
+		if err != nil {
+			if err.Error() == "EOF" && len(batch) > 0 {
+				// EOF reached but we have data in the batch to return
+				return batch, bytesRead, io.EOF
+			}
+			// Return any other error encountered
+			log.Debugf("action: read_csv | result: fail | filepath: %s | err: %s", filePath, err)
+			return nil, bytesRead, err
+		}
+
+		// Parse the CSV line by splitting on commas (simple parsing for demo purposes)
+		record := strings.Split(strings.TrimSpace(line), ",")
+		batch = append(batch, record)
+
+		// Return the batch if the size limit is reached
+		if len(batch) == batchSize {
+			return batch, bytesRead, nil
 		}
 	}
 

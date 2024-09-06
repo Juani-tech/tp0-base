@@ -3,6 +3,7 @@ package communication
 import (
 	"errors"
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 
@@ -30,14 +31,14 @@ func NewProtocol(conn SafeSocket, batchSize int, stop chan bool, clientId string
 }
 
 func (p *Protocol) RunProtocol() error {
-	batchesOfBets, err := services.BatchOfBetsFromCsvFile("./data.csv", p.batchSize, p.stop)
+	// batchesOfBets, err := services.BatchOfBetsFromCsvFile("./data.csv", p.batchSize, p.stop)
 
-	if err != nil {
-		log.Debugf("%s", err)
-		return err
-	}
+	// if err != nil {
+	// 	log.Debugf("%s", err)
+	// 	return err
+	// }
 
-	err = p.SendBatchesOfBets(batchesOfBets)
+	err := p.SendBatchesOfBets("./data.csv")
 	if err != nil {
 		log.Debugf("%s", err)
 		return err
@@ -80,9 +81,56 @@ func (p *Protocol) SendBet(g services.Bet) error {
 	return nil
 }
 
-// maxBatchSize represents the maximum amount of bytes sent per message
-func (p *Protocol) SendBatchesOfBets(batchesOfBets []services.Batch) error {
-	for _, batch := range batchesOfBets {
+// // maxBatchSize represents the maximum amount of bytes sent per message
+// func (p *Protocol) SendBatchesOfBets(batchesOfBets []services.Batch) error {
+// 	for _, batch := range batchesOfBets {
+
+// 		message, err := p.formatBatch(batch)
+
+// 		if err != nil {
+// 			log.Debugf("action: format_batch | result: fail | client_id: %v | error: %v",
+// 				p.clientId,
+// 				err,
+// 			)
+// 			return err
+// 		}
+
+// 		err = p.sendMessageWithMaxSize(message)
+
+// 		if err != nil {
+// 			log.Debugf("action: send_batches_of_bets | result: fail | client_id: %v | error: %v",
+// 				p.clientId,
+// 				err,
+// 			)
+// 			return err
+// 		}
+
+// 		msg, err := p.conn.RecvAll()
+
+// 		if err != nil {
+// 			return err
+// 		}
+
+// 		log.Debugf("action: server_response | result: success | client_id: %v | response: %v",
+// 			p.clientId,
+// 			msg,
+// 		)
+// 	}
+// 	return nil
+// }
+
+func (p *Protocol) SendBatchesOfBets(filePath string) error {
+	var currentPosition int64 = 0
+	for {
+		batch, nextPosition, errStop := services.BatchOfBetsFromCsvFileManualAtPosition(filePath, p.batchSize, currentPosition)
+
+		if errStop == io.EOF && len(batch) == 0 {
+			return nil
+		} else if errStop != nil && errStop != io.EOF {
+			return errStop
+		}
+
+		currentPosition = nextPosition
 
 		message, err := p.formatBatch(batch)
 
@@ -107,6 +155,10 @@ func (p *Protocol) SendBatchesOfBets(batchesOfBets []services.Batch) error {
 		msg, err := p.conn.RecvAll()
 
 		if err != nil {
+			log.Debugf("action: server_response | result: fail | client_id: %v | error: %v",
+				p.clientId,
+				err,
+			)
 			return err
 		}
 
@@ -114,6 +166,9 @@ func (p *Protocol) SendBatchesOfBets(batchesOfBets []services.Batch) error {
 			p.clientId,
 			msg,
 		)
+		if errStop != nil {
+			break
+		}
 	}
 	return nil
 }
