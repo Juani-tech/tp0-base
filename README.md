@@ -183,6 +183,7 @@ Finalmente, se pide a los alumnos leer atentamente y **tener en cuenta** los cri
 
 ### Ejercicio 1
 
+- Para este ejercicio es probable que solicite la password de quien lo ejecuta
 - Ejecutar:
 
 ```bash
@@ -244,3 +245,7 @@ sh validar-echo-server.sh
   - Condition variable
     - En protocol:
       - Esta puede sonar un poco raro. Por que no usaria barreras es la pregunta (para sincronizar a los threads cuando estan solicitando los ganadores)?. La respuesta es que, si bien se puede, dificultaba el manejo de la signal SIGTERM, ya que al hacer wait se bloqueaba el thread por completo, sin embargo usando esta primitiva de sincronizacion, se permite que, una vez llega SIGTERM al hilo principal, se desbloqueen todos los hilos que estaban esperando, checkean si el evento 'got_sigterm' fue setteado, en tal caso raisean SystemExit para liberar los recursos, y sino, checkean la condicion de si todas las agencias terminaron, si es el caso, se envian los resultados.
+
+## Aclaraciones
+
+- Luego de la demo me di cuenta que estaba cargando el csv todo junto en memoria (si bien en su tiempo surgio, pense en dejarlo para mas adelante). No logre comprender por que la funcion InputOffset de encoding/csv NO se puede usar, por lo que tuve que crear una funcion que parsee el csv "a mano".
