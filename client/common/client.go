@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/7574-sistemas-distribuidos/docker-compose-init/client/communication"
-	"github.com/7574-sistemas-distribuidos/docker-compose-init/client/services"
 
 	"github.com/op/go-logging"
 )
@@ -89,7 +88,7 @@ func (c *Client) SendBatchesOfBets() error {
 		return err
 	}
 
-	batchesOfBets, err := services.BatchOfBetsFromCsvFile("./data.csv", c.config.BatchSize)
+	// batchesOfBets, err := services.BatchOfBetsFromCsvFile("./data.csv", c.config.BatchSize)
 
 	if err != nil {
 		return err
@@ -97,7 +96,7 @@ func (c *Client) SendBatchesOfBets() error {
 
 	protocol := communication.NewProtocol(c.conn, c.config.BatchSize, c.stop, c.config.ID, c.config.MaxMessageSize, c.config.LengthBytes)
 
-	err = protocol.SendBatchesOfBets(batchesOfBets)
+	err = protocol.SendBatchesOfBets("./data.csv")
 
 	if err != nil {
 		log.Debugf("action: send_batches_of_bets | result: fail | client_id: %v | error: %v",

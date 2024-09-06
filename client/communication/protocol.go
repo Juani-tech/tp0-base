@@ -3,6 +3,7 @@ package communication
 import (
 	"errors"
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 
@@ -58,9 +59,19 @@ func (p *Protocol) formatLength(length int) string {
 	return s
 }
 
-// maxBatchSize represents the maximum amount of bytes sent per message
-func (p *Protocol) SendBatchesOfBets(batchesOfBets []services.Batch) error {
-	for _, batch := range batchesOfBets {
+func (p *Protocol) SendBatchesOfBets(filePath string) error {
+	var currentPosition int64 = 0
+	for {
+		batch, nextPosition, errStop := services.BatchOfBetsFromCsvFileManualAtPosition(filePath, p.batchSize, currentPosition)
+
+		if errStop == io.EOF && len(batch) == 0 {
+			return nil
+		} else if errStop != nil && errStop != io.EOF {
+			return errStop
+		}
+
+		currentPosition = nextPosition
+
 		message, err := p.formatBatch(batch)
 
 		if err != nil {
@@ -95,7 +106,9 @@ func (p *Protocol) SendBatchesOfBets(batchesOfBets []services.Batch) error {
 			p.clientId,
 			msg,
 		)
-
+		if errStop != nil {
+			break
+		}
 	}
 	return nil
 }
