@@ -152,7 +152,7 @@ func (p *Protocol) SendBatchesOfBets(filePath string) error {
 			return err
 		}
 
-		msg, err := p.conn.RecvAll()
+		msg, err := p.conn.RecvAllWithLengthBytes()
 
 		if err != nil {
 			log.Debugf("action: server_response | result: fail | client_id: %v | error: %v",
@@ -308,7 +308,7 @@ func (p *Protocol) AskForWinners() error {
 		return err
 	}
 
-	msg, err := p.conn.RecvAll()
+	msg, err := p.conn.RecvAllWithLengthBytes()
 
 	if err != nil {
 		log.Debugf("action: receive_winners | result: fail | error: %v", err)

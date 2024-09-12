@@ -6,6 +6,7 @@ from common.utils import Bet, store_bets, winners_for_agency
 from communication.safe_socket import SafeSocket
 from communication.protocol import Protocol
 
+
 class Server:
 
     def __init__(self, port, listen_backlog, total_agencies, length_bytes):
@@ -16,10 +17,9 @@ class Server:
         self._got_sigterm = threading.Event()
         self._sigterm_cv = threading.Condition()
         self._protocol = Protocol(self._got_sigterm, self._sigterm_cv, total_agencies)
-        self._length_bytes = length_bytes  
+        self._length_bytes = length_bytes
         self._alive_threads = set()
         self._alive_threads_lock = threading.Lock()
-
 
     # Sets sigtemr_received flag and executes shutdown on the socket
     # which causes the server to "tell" to the connected parts that it's closing them
@@ -28,7 +28,7 @@ class Server:
         self._got_sigterm.set()
         with self._sigterm_cv:
             self._sigterm_cv.notify_all()
-    
+
         raise SystemExit
 
     def run(self):
@@ -47,18 +47,19 @@ class Server:
             try:
                 client_sock = self.__accept_new_connection()
                 sock = SafeSocket(client_sock, self._length_bytes, self._got_sigterm)
-                thread = threading.Thread(target=self.__handle_client_connection, args=(sock,))
-                with self._alive_threads_lock: 
+                thread = threading.Thread(
+                    target=self.__handle_client_connection, args=(sock,)
+                )
+                with self._alive_threads_lock:
                     self._alive_threads.add(thread)
                 thread.start()
             except (OSError, SystemExit):
                 logging.debug("action: accept_new_connections | result: finished ")
                 break
-            # finally: 
-        with self._alive_threads_lock: 
-            for thread in self._alive_threads: 
+            # finally:
+        with self._alive_threads_lock:
+            for thread in self._alive_threads:
                 thread.join()
-
 
     def __handle_client_connection(self, client_sock):
         """
@@ -69,9 +70,9 @@ class Server:
         """
 
         try:
-            while True: 
+            while True:
                 msg = (
-                    client_sock.recv_all()
+                    client_sock.recv_all_with_length_bytes()
                     .rstrip(b"\n")
                     .rstrip()
                     .decode("utf-8")
@@ -93,7 +94,7 @@ class Server:
                     break
                 else:
                     raise RuntimeError(f"Message type not recognized: {message_type}")
-             
+
         except OSError as e:
             logging.error(f"action: receive_message | result: fail | error: {e}")
         finally:

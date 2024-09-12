@@ -12,7 +12,50 @@ class SafeSocket:
         self._length_bytes = length_bytes
         self._got_sigterm = got_sigterm
 
-    def recv_all(self):
+    def __receive_length(self):
+        """
+        Raises:
+            OSError: if the amount of read bytes is 0 (zero), which indicates that the socket is closed
+
+        Returns:
+            int: the length decoded (utf-8) as int
+        """
+        received = b""
+        while len(received) < 6:
+            if self._got_sigterm.is_set():
+                raise SystemExit
+
+            received += self._sock.recv(self._length_bytes)
+            if len(received) == 0:
+                raise OSError
+
+        return int(received.decode("utf-8"))
+
+    def __receive_message(self, message_len):
+        """_summary_
+
+        Args:
+            message_len (int): length of the message in bytes
+
+        Raises:
+            OSError: if the amount of read bytes is 0 (zero), which indicates that the socket is closed
+
+        Returns:
+            the raw message (bytes)
+        """
+        received = b""
+        while len(received) < message_len:
+            if self._got_sigterm.is_set():
+                raise SystemExit
+
+            received += self._sock.recv(message_len)
+
+            if len(received) == 0:
+                raise OSError
+
+        return received
+
+    def recv_all_with_length_bytes(self):
         """
         Receives all data from the socket, handling short-reads and socket disconnection.
 
@@ -23,31 +66,47 @@ class SafeSocket:
         - OSError: If the connection is closed unexpectedly.
         - SystemExit: If a SIGTERM signal is detected.
         """
-        data = b""
-        while True:
-            if self._got_sigterm.is_set():
-                raise SystemExit
-            
-            # Receives the first part (length of the message in bytes) and decodes it
-            length = self._sock.recv(6).decode('utf-8')
-            
-            if len(length) == 0:
-                # The other side closed the connection
-                raise OSError
-            
-            # Receives the actual data part based on the length
-            part = self._sock.recv(int(length)) 
-            
-            if len(part) == 0:
-                # The other side closed the connection
-                raise OSError
+        length = self.__receive_length()
+        message = self.__receive_message(length)
 
-            data += part
+        return message
 
-            if b"\n" in part:
-                # End of the message detected
-                break
-        return data
+    # def recv_all(self):
+    #     """
+    #     Receives all data from the socket, handling short-reads and socket disconnection.
+
+    #     Returns:
+    #     - The complete message received from the socket.
+
+    #     Raises:
+    #     - OSError: If the connection is closed unexpectedly.
+    #     - SystemExit: If a SIGTERM signal is detected.
+    #     """
+    #     data = b""
+    #     while True:
+    #         if self._got_sigterm.is_set():
+    #             raise SystemExit
+
+    #         # Receives the first part (length of the message in bytes) and decodes it
+    #         length = self._sock.recv(6).decode("utf-8")
+
+    #         if len(length) == 0:
+    #             # The other side closed the connection
+    #             raise OSError
+
+    #         # Receives the actual data part based on the length
+    #         part = self._sock.recv(int(length))
+
+    #         if len(part) == 0:
+    #             # The other side closed the connection
+    #             raise OSError
+
+    #         data += part
+
+    #         if b"\n" in part:
+    #             # End of the message detected
+    #             break
+    #     return data
 
     def __format_length(self, length):
         """
@@ -66,7 +125,7 @@ class SafeSocket:
 
     def send_all(self, data):
         """
-        Sends all data through the socket, handling short-writes and ensuring that the 
+        Sends all data through the socket, handling short-writes and ensuring that the
         message length is sent first.
 
         Parameters:
@@ -78,13 +137,15 @@ class SafeSocket:
         """
         total_sent = 0
         # Prepend the message with its length
-        protocol_message = "{}".format(self.__format_length(len(data))).encode("utf-8") + data
+        protocol_message = (
+            "{}".format(self.__format_length(len(data))).encode("utf-8") + data
+        )
 
         # Sends the message in chunks until the entire message is sent
         while total_sent < len(protocol_message):
             if self._got_sigterm.is_set():
                 raise SystemExit
-            
+
             sent = self._sock.send(protocol_message[total_sent:])
             if sent == 0:
                 raise OSError

@@ -101,7 +101,7 @@ func (c *Client) StartClientLoop() {
 			}
 
 			// msg, err := bufio.NewReader(c.conn).ReadString('\n')
-			msg, err := c.conn.RecvAll()
+			msg, err := c.conn.RecvAllWithLengthBytes()
 			c.conn.Close()
 			// This checks the short-read, so no extra validation is needed
 			if err != nil {
