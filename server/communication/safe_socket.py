@@ -71,43 +71,6 @@ class SafeSocket:
 
         return message
 
-    # def recv_all(self):
-    #     """
-    #     Receives all data from the socket, handling short-reads and socket disconnection.
-
-    #     Returns:
-    #     - The complete message received from the socket.
-
-    #     Raises:
-    #     - OSError: If the connection is closed unexpectedly.
-    #     - SystemExit: If a SIGTERM signal is detected.
-    #     """
-    #     data = b""
-    #     while True:
-    #         if self._got_sigterm.is_set():
-    #             raise SystemExit
-
-    #         # Receives the first part (length of the message in bytes) and decodes it
-    #         length = self._sock.recv(6).decode("utf-8")
-
-    #         if len(length) == 0:
-    #             # The other side closed the connection
-    #             raise OSError
-
-    #         # Receives the actual data part based on the length
-    #         part = self._sock.recv(int(length))
-
-    #         if len(part) == 0:
-    #             # The other side closed the connection
-    #             raise OSError
-
-    #         data += part
-
-    #         if b"\n" in part:
-    #             # End of the message detected
-    #             break
-    #     return data
-
     def __format_length(self, length):
         """
         Formats the length of the message to ensure it's padded to the specified length in bytes.
