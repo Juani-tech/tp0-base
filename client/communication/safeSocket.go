@@ -52,7 +52,7 @@ func (s *SafeSocket) SendAll(message string) error {
 	return nil
 }
 
-func (s *SafeSocket) readLength() (int, error) {
+func (s *SafeSocket) readLength(reader *bufio.Reader) (int, error) {
 	lengthBuffer := make([]byte, 0)
 	for len(lengthBuffer) < s.lengthBytes {
 		select {
@@ -61,14 +61,13 @@ func (s *SafeSocket) readLength() (int, error) {
 		default:
 			s.conn.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
 
-			reader := bufio.NewReader(s.conn)
 			buffer := make([]byte, s.lengthBytes)
 
 			bytesRead, err := reader.Read(buffer)
 
 			s.conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 
-			if err != nil || bytesRead != s.lengthBytes {
+			if err != nil {
 				if errors.Is(err, os.ErrDeadlineExceeded) {
 					continue
 				}
@@ -90,9 +89,8 @@ func (s *SafeSocket) readLength() (int, error) {
 	return length, nil
 }
 
-func (s *SafeSocket) readNBytes(n int) (string, error) {
+func (s *SafeSocket) readNBytes(n int, reader *bufio.Reader) (string, error) {
 	totalMessage := ""
-	reader := bufio.NewReader(s.conn)
 
 	for len(totalMessage) < n {
 		select {
@@ -107,12 +105,14 @@ func (s *SafeSocket) readNBytes(n int) (string, error) {
 			s.conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 
 			if err != nil {
+				if errors.Is(err, os.ErrDeadlineExceeded) {
+					continue
+				}
 				return "", err
 			}
 
 			// Accumulate the message buffer into totalMessage
 			totalMessage += string(msgBuffer[:bytesRead])
-
 		}
 	}
 	// Trim the \n and return the full message
@@ -120,20 +120,20 @@ func (s *SafeSocket) readNBytes(n int) (string, error) {
 }
 
 func (s *SafeSocket) RecvAllWithLengthBytes() (string, error) {
-	length, err := s.readLength()
-	if err != nil {
-		return "", err
-	}
-	message, err := s.readNBytes(length)
+	reader := bufio.NewReader(s.conn)
+
+	length, err := s.readLength(reader)
 	if err != nil {
 		return "", err
 	}
 
-	log.Debugf("Received: %s", message)
+	message, err := s.readNBytes(length, reader)
+	if err != nil {
+		return "", err
+	}
 
 	return message, nil
 }
-
 func (s *SafeSocket) Close() {
 	s.conn.Close()
 }

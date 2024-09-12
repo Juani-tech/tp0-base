@@ -29,7 +29,7 @@ class SafeSocket:
             OSError: if the amount of read bytes is 0 (zero), which indicates that the socket is closed
 
         Returns:
-            the message decoded (utf-8) as string
+            the raw message (bytes)
         """
         received = b""
         while len(received) < message_len:
@@ -42,26 +42,9 @@ class SafeSocket:
 
     def recv_all_with_length_bytes(self):
         """Receive all data from the socket, handling short-reads."""
-        # data = b""
-        # while True:
-        # length = self._sock.recv(self._length_bytes).decode("utf-8")
         length = self.__receive_length()
         message = self.__receive_message(length)
-        # if len(length) == 0:
-        #     # The other side closed the connection
-        #     raise OSError
 
-        # part = self._sock.recv(int(length))
-
-        # if len(part) == 0:
-        #     # The other side closed the connection
-        #     raise OSError
-
-        # data += part
-
-        # if b"\n" in part:
-        # End of the message
-        # break
         return message
 
     def close(self):
