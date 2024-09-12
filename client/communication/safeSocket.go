@@ -52,55 +52,6 @@ func (s *SafeSocket) SendAll(message string) error {
 	return nil
 }
 
-// func (s *SafeSocket) RecvAllWithLengthBytes() (string, error) {
-// 	totalMessage := ""
-
-// 	for {
-// 		select {
-// 		case <-s.stop:
-// 			return "", errors.New("sigterm received")
-// 		default:
-// 			s.conn.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
-
-// 			reader := bufio.NewReader(s.conn)
-// 			buffer := make([]byte, s.lengthBytes)
-// 			bytesRead, err := reader.Read(buffer)
-
-// 			if err != nil || bytesRead != s.lengthBytes {
-// 				if errors.Is(err, os.ErrDeadlineExceeded) {
-// 					continue
-// 				}
-// 				return "", err
-// 			}
-
-// 			s.conn.SetReadDeadline(time.Now().Add(5 * time.Second))
-
-// 			str := string(buffer)
-
-// 			length, err := strconv.Atoi(str)
-// 			if err != nil {
-// 				return "", err
-// 			}
-
-// 			msgBuffer := make([]byte, length)
-// 			bytesRead, err = reader.Read(msgBuffer)
-
-// 			if err != nil || bytesRead < length {
-// 				return "", err
-// 			}
-
-// 			// Accumulate the message buffer into totalMessage
-// 			totalMessage += string(msgBuffer[:bytesRead])
-
-// 			// Check if the accumulated message contains a newline
-// 			if strings.Contains(totalMessage, "\n") {
-// 				// Trim the \n and return the full message
-// 				return strings.TrimSuffix(totalMessage, "\n"), nil
-// 			}
-// 		}
-// 	}
-// }
-
 func (s *SafeSocket) readLength(reader *bufio.Reader) (int, error) {
 	lengthBuffer := make([]byte, 0)
 	for len(lengthBuffer) < s.lengthBytes {
