@@ -52,57 +52,91 @@ func (s *SafeSocket) SendAll(message string) error {
 	return nil
 }
 
-// RecvAll reads a message from the connection. It first reads a fixed-length header that indicates the
-// length of the message, then reads the actual message.
-//
-// Returns the message as a string, or an error if something goes wrong during reading.
-func (s *SafeSocket) RecvAllWithLengthBytes() (string, error) {
+func (s *SafeSocket) readLength(reader *bufio.Reader) (int, error) {
+	lengthBuffer := make([]byte, 0)
+	for len(lengthBuffer) < s.lengthBytes {
+		select {
+		case <-s.stop:
+			return 0, errors.New("sigterm received")
+		default:
+			s.conn.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
+
+			buffer := make([]byte, s.lengthBytes)
+
+			bytesRead, err := reader.Read(buffer)
+
+			s.conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+
+			if err != nil {
+				if errors.Is(err, os.ErrDeadlineExceeded) {
+					continue
+				}
+				return 0, err
+			}
+
+			if bytesRead > 0 {
+				lengthBuffer = append(lengthBuffer, buffer[:bytesRead]...)
+			}
+		}
+	}
+	str := string(lengthBuffer)
+
+	length, err := strconv.Atoi(str)
+	if err != nil {
+		return 0, err
+	}
+
+	return length, nil
+}
+
+func (s *SafeSocket) readNBytes(n int, reader *bufio.Reader) (string, error) {
 	totalMessage := ""
 
-	for {
+	for len(totalMessage) < n {
 		select {
 		case <-s.stop:
 			return "", errors.New("sigterm received")
 		default:
 			s.conn.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
 
-			reader := bufio.NewReader(s.conn)
-			buffer := make([]byte, s.lengthBytes)
-			bytesRead, err := reader.Read(buffer)
+			msgBuffer := make([]byte, n)
+			bytesRead, err := reader.Read(msgBuffer)
 
-			if err != nil || bytesRead != s.lengthBytes {
+			s.conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+
+			if err != nil {
 				if errors.Is(err, os.ErrDeadlineExceeded) {
 					continue
 				}
 				return "", err
 			}
 
-			s.conn.SetReadDeadline(time.Now().Add(5 * time.Second))
-
-			str := string(buffer)
-
-			length, err := strconv.Atoi(str)
-			if err != nil {
-				return "", err
-			}
-
-			msgBuffer := make([]byte, length)
-			bytesRead, err = reader.Read(msgBuffer)
-
-			if err != nil || bytesRead < length {
-				return "", err
-			}
-
 			// Accumulate the message buffer into totalMessage
 			totalMessage += string(msgBuffer[:bytesRead])
-
-			// Check if the accumulated message contains a newline
-			if strings.Contains(totalMessage, "\n") {
-				// Trim the \n and return the full message
-				return strings.TrimSuffix(totalMessage, "\n"), nil
-			}
 		}
 	}
+	// Trim the \n and return the full message
+	return strings.TrimSuffix(totalMessage, "\n"), nil
+}
+
+// RecvAll reads a message from the connection. It first reads a fixed-length header that indicates the
+// length of the message, then reads the actual message.
+//
+// Returns the message as a string, or an error if something goes wrong during reading.
+func (s *SafeSocket) RecvAllWithLengthBytes() (string, error) {
+	reader := bufio.NewReader(s.conn)
+
+	length, err := s.readLength(reader)
+	if err != nil {
+		return "", err
+	}
+
+	message, err := s.readNBytes(length, reader)
+	if err != nil {
+		return "", err
+	}
+
+	return message, nil
 }
 
 func (s *SafeSocket) Close() {
