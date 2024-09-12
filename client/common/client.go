@@ -90,13 +90,13 @@ func (c *Client) SendBatchesOfBets() error {
 
 	// batchesOfBets, err := services.BatchOfBetsFromCsvFile("./data.csv", c.config.BatchSize)
 
-	if err != nil {
-		return err
-	}
+	// if err != nil {
+	// 	return err
+	// }
 
 	protocol := communication.NewProtocol(c.conn, c.config.BatchSize, c.stop, c.config.ID, c.config.MaxMessageSize, c.config.LengthBytes)
 
-	err = protocol.SendBatchesOfBets("./data.csv")
+	err = protocol.SendBatchesOfBets("data.csv")
 
 	if err != nil {
 		log.Debugf("action: send_batches_of_bets | result: fail | client_id: %v | error: %v",

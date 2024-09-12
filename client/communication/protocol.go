@@ -81,7 +81,6 @@ func (p *Protocol) SendBatchesOfBets(filePath string) error {
 			)
 			return err
 		}
-
 		err = p.sendMessageWithMaxSize(message)
 
 		if err != nil {

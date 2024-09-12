@@ -118,7 +118,7 @@ func NewBetFromENV() *Bet {
 func BatchOfBetsFromCsvFileManualAtPosition(filePath string, batchSize int, startPosition int64) (Batch, int64, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
-		// log.Printf("action: open_csv | result: fail | filepath: %s | err: %s", filePath, err)
+		// log.Debugf("action: open_csv | result: fail | filepath: %s | err: %s", filePath, err)
 		return nil, 0, err
 	}
 	defer file.Close()

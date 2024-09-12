@@ -24,6 +24,7 @@ services:
     volumes:
     - ./client/config.yaml:/config.yaml
     - ./.data/agency-1.csv:/data.csv
+    command: tail -f /dev/null
   client2:
     container_name: client2
     depends_on:

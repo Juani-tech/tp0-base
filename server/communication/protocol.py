@@ -2,21 +2,23 @@ from common.utils import Bet
 import logging
 from common.utils import Bet, store_bets
 
-class Protocol: 
+
+class Protocol:
     def __init__(self):
         pass
+
     def __validate_bet_data(self, data):
-            expected_keys = [
-                "AGENCIA",
-                "NOMBRE",
-                "APELLIDO",
-                "DOCUMENTO",
-                "NACIMIENTO",
-                "NUMERO",
-            ]
-            for key in expected_keys:
-                if key not in data.keys():
-                    raise RuntimeError("Missing data: ", key)
+        expected_keys = [
+            "AGENCIA",
+            "NOMBRE",
+            "APELLIDO",
+            "DOCUMENTO",
+            "NACIMIENTO",
+            "NUMERO",
+        ]
+        for key in expected_keys:
+            if key not in data.keys():
+                raise RuntimeError("Missing data: ", key)
 
     """ 
     Parses a message with the format: K1=V1,K2=V2,...,Kn=Vn and returns a dictionary with the
@@ -60,7 +62,6 @@ class Protocol:
         )
 
         return bet
-    
 
     def __parse_batch_data(self, batch, expectedBatchSize):
         if not batch:
@@ -82,7 +83,7 @@ class Protocol:
         try:
             batch_size, data = batch_message.split(",", 1)
             parsed_batch_data = self.__parse_batch_data(data, int(batch_size))
-            
+
             store_bets(parsed_batch_data)
 
             logging.info(
@@ -90,12 +91,9 @@ class Protocol:
             )
             # Send success to the client
             client_sock.send_all("{}\n".format("EXITO").encode("utf-8"))
-
         except (ValueError, RuntimeError) as e:
             logging.error(
                 f"action: apuesta_recibida | result: fail | error: {e} cantidad: {batch_size or 0}"
             )
             # Send error to the client
             client_sock.send_all("{}\n".format("ERROR").encode("utf-8"))
-
-

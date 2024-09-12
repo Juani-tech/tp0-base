@@ -40,7 +40,9 @@ class Server:
 
         while True:
             try:
-                client_sock = SafeSocket(self.__accept_new_connection(), self._length_bytes)
+                client_sock = SafeSocket(
+                    self.__accept_new_connection(), self._length_bytes
+                )
                 self.__handle_client_connection(client_sock)
             except (OSError, SystemExit):
                 return
@@ -52,11 +54,15 @@ class Server:
         If a problem arises in the communication with the client, the
         client socket will also be closed.
         """
-        
-        batch_size = None
+
         try:
-            while True: 
-                msg = client_sock.recv_all_with_length_bytes().rstrip().rstrip(b"\n").decode('utf-8')
+            while True:
+                msg = (
+                    client_sock.recv_all_with_length_bytes()
+                    .rstrip()
+                    .rstrip(b"\n")
+                    .decode("utf-8")
+                )
                 addr = client_sock.getpeername()
 
                 logging.info(
@@ -64,12 +70,6 @@ class Server:
                 )
                 self._protocol.process_batch(msg, client_sock)
 
-        except (ValueError, RuntimeError) as e:
-            logging.error(
-                f"action: apuesta_recibida | result: fail | error: {e} cantidad: {batch_size or 0}"
-            )
-            # Send error to the client
-            self.__send_all(client_sock, "{}\n".format("ERROR").encode("utf-8"))
         except OSError as e:
             logging.error(f"action: receive_message | result: fail | error: {e}")
 
