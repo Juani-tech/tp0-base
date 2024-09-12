@@ -22,10 +22,7 @@ class SafeSocket:
         """
         received = b""
         while len(received) < 6:
-            if self._got_sigterm.is_set():
-                raise SystemExit
-
-            received += self._sock.recv(self._length_bytes)
+            received += self._sock.recv(self._length_bytes - len(received))
             if len(received) == 0:
                 raise OSError
 
@@ -45,10 +42,7 @@ class SafeSocket:
         """
         received = b""
         while len(received) < message_len:
-            if self._got_sigterm.is_set():
-                raise SystemExit
-
-            received += self._sock.recv(message_len)
+            received += self._sock.recv(message_len - len(received))
 
             if len(received) == 0:
                 raise OSError

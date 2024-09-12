@@ -77,7 +77,7 @@ func (s *SafeSocket) readLength(reader *bufio.Reader) (int, error) {
 		default:
 			s.conn.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
 
-			buffer := make([]byte, s.lengthBytes)
+			buffer := make([]byte, s.lengthBytes-len(lengthBuffer))
 
 			bytesRead, err := reader.Read(buffer)
 
@@ -115,7 +115,7 @@ func (s *SafeSocket) readNBytes(n int, reader *bufio.Reader) (string, error) {
 		default:
 			s.conn.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
 
-			msgBuffer := make([]byte, n)
+			msgBuffer := make([]byte, n-len(totalMessage))
 			bytesRead, err := reader.Read(msgBuffer)
 
 			s.conn.SetReadDeadline(time.Now().Add(5 * time.Second))
